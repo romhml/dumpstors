@@ -1,0 +1,18 @@
+[package]
+name = "dumpsters"
+version = "0.1.0"
+authors = ["Romain Hamel <rom.hml@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+
+futures = "0.3.12"
+bytes = "1.0.1"
+config = "0.10.1"
+serde = "1.0.123"
+serde_derive = "1.0.123"
+tonic = "0.4.0"
+
+[dependencies.dumpsters_lib]
+path = "../lib"
