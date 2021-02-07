@@ -2,8 +2,8 @@ use structopt::StructOpt;
 
 use tonic::Request;
 
-use dumpsters_lib::dumpsters_client::DumpstersClient;
-use dumpsters_lib::*;
+use dumpstors_lib::dumpstors_client::DumpstorsClient;
+use dumpstors_lib::*;
 
 #[derive(Debug, StructOpt)]
 struct GetQueryOpt {
@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = GetQueryOpt::from_args();
 
     println!("{:?}", args);
-    let mut client = DumpstersClient::connect(args.bootstrap.clone()).await?;
+    let mut client = DumpstorsClient::connect(args.bootstrap.clone()).await?;
 
     let req = Request::new(InsertQuery {
         keyspace: String::from("ks1"),

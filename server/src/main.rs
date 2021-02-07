@@ -4,8 +4,8 @@ extern crate serde_derive;
 
 use tonic::transport::Server;
 
-use dumpsters_lib::dumpsters_server::DumpstersServer;
-use dumpsters_lib::store::Store;
+use dumpstors_lib::dumpstors_server::DumpstorsServer;
+use dumpstors_lib::store::Store;
 
 mod settings;
 mod store;
@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let store_srv = store::StoreServer::new(Store::new(conf.store.path));
 
     Server::builder()
-        .add_service(DumpstersServer::new(store_srv))
+        .add_service(DumpstorsServer::new(store_srv))
         .serve(sockaddr.parse()?)
         .await?;
 

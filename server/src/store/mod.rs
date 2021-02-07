@@ -2,9 +2,9 @@ use std::sync::{Arc, Mutex};
 
 use tonic::{Request, Response, Status};
 
-use dumpsters_lib::dumpsters_server::Dumpsters;
-use dumpsters_lib::store::Store;
-use dumpsters_lib::*;
+use dumpstors_lib::dumpstors_server::Dumpstors;
+use dumpstors_lib::store::Store;
+use dumpstors_lib::*;
 
 pub struct StoreServer {
     store: Arc<Mutex<Store>>,
@@ -19,7 +19,7 @@ impl StoreServer {
 }
 
 #[tonic::async_trait]
-impl Dumpsters for StoreServer {
+impl Dumpstors for StoreServer {
     async fn ping(&self, _request: Request<()>) -> Result<Response<()>, Status> {
         Ok(Response::new(()))
     }
