@@ -1,0 +1,13 @@
+[package]
+name = "dumpsters_client"
+version = "0.1.0"
+authors = ["Romain Hamel <rom.hml@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+tonic = "0.4.0"
+structopt = "0.3.21"
+
+[dependencies.dumpsters_lib]
+path = "../lib"
