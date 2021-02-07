@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package dumpsters;
+
+import "google/protobuf/empty.proto";
+
+message Record {
+  bytes key = 1;
+  bytes value = 2;
+}
+
+message GetQuery {
+  string keyspace = 1;
+  repeated bytes keys = 2;
+}
+
+message GetResponse {
+  string keyspace = 1;
+  repeated Record records = 2;
+}
+
+message InsertQuery {
+  string keyspace = 1;
+  repeated Record records = 2;
+}
+
+message InsertError {
+  bytes key = 1;
+  string reason = 2;
+}
+
+message InsertResponse {
+  string keyspace = 1;
+  repeated InsertError errors = 2;
+}
+
+message DeleteQuery {
+  string keyspace = 1;
+  repeated bytes keys = 2;
+}
+
+message DeleteResponse {
+  string keyspace = 1;
+  repeated DeleteError errors = 2;
+}
+
+message DeleteError {
+  bytes key = 1;
+  string reason = 2;
+}
+
+service Dumpsters {
+  rpc Ping (google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc GetKeys (GetQuery) returns (GetResponse);
+  rpc InsertKeys (InsertQuery) returns (InsertResponse);
+  rpc DeleteKeys (DeleteQuery) returns (DeleteResponse);
+}
