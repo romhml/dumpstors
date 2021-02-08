@@ -1,0 +1,7 @@
+syntax = "proto3";
+package dumpstors.models;
+
+message Record {
+  bytes key = 1;
+  bytes value = 2;
+}

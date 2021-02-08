@@ -1,111 +1,86 @@
+pub mod keyspace;
+
 use std::sync::{Arc, Mutex};
 
 use tonic::{Request, Response, Status};
 
-use dumpstors_lib::dumpstors_server::Dumpstors;
 use dumpstors_lib::store::Store;
-use dumpstors_lib::*;
+use dumpstors_lib::store::*;
 
-pub struct StoreServer {
+pub struct DumpstorsStoreServer {
     store: Arc<Mutex<Store>>,
 }
 
-impl StoreServer {
-    pub fn new(store: Store) -> Self {
-        Self {
-            store: Arc::new(Mutex::new(store)),
-        }
+impl DumpstorsStoreServer {
+    pub fn new(store: Arc<Mutex<Store>>) -> Self {
+        Self { store }
     }
 }
 
 #[tonic::async_trait]
-impl Dumpstors for StoreServer {
+impl store_server::Store for DumpstorsStoreServer {
     async fn ping(&self, _request: Request<()>) -> Result<Response<()>, Status> {
         Ok(Response::new(()))
     }
 
-    async fn get_keys(&self, request: Request<GetQuery>) -> Result<Response<GetResponse>, Status> {
-        let request = request.into_inner();
-        let mut store = self.store.lock().unwrap();
+    async fn get_keyspaces(
+        &self,
+        request: Request<GetKeyspacesQuery>,
+    ) -> Result<Response<GetKeyspacesResponse>, Status> {
+        let mut _store = self.store.lock();
+        let _request = request.into_inner();
 
-        let ks = store.get_keyspace(request.keyspace.clone()).unwrap();
-
-        let records = request
-            .keys
-            .iter()
-            .map(|k| {
-                let value = ks.get(k.as_slice()).unwrap().unwrap();
-                Record {
-                    key: k.clone(),
-                    value: value.to_vec(),
-                }
-            })
-            .collect();
-
-        let reply = GetResponse {
-            keyspace: request.keyspace,
-            records,
-        };
+        let reply = GetKeyspacesResponse { keyspaces: vec![] };
 
         Ok(Response::new(reply))
     }
 
-    async fn insert_keys(
+    async fn create_keyspaces(
         &self,
-        request: Request<InsertQuery>,
-    ) -> Result<Response<InsertResponse>, Status> {
-        let request = request.into_inner();
+        request: Request<CreateKeyspacesQuery>,
+    ) -> Result<Response<CreateKeyspacesResponse>, Status> {
         let mut store = self.store.lock().unwrap();
-
-        let ks = store.get_keyspace(request.keyspace.clone()).unwrap();
+        let request = request.into_inner();
 
         let errors = request
-            .records
+            .keyspaces
             .iter()
-            .map(|r| match ks.insert(r.key.as_slice(), r.value.as_slice()) {
-                Ok(_) => None,
-                Err(e) => Some(InsertError {
-                    key: r.key.clone(),
-                    reason: format!("{}", e),
+            .map(|ks| match store.create_keyspace(ks.clone()) {
+                Some(_) => None,
+                None => Some(CreateKeyspaceError {
+                    keyspace: ks.clone(),
+                    reason: format!("Could not create keyspace"),
                 }),
             })
             .flatten()
             .collect();
 
-        let reply = InsertResponse {
-            keyspace: request.keyspace,
-            errors,
-        };
+        let reply = CreateKeyspacesResponse { errors };
 
         Ok(Response::new(reply))
     }
 
-    async fn delete_keys(
+    async fn delete_keyspaces(
         &self,
-        request: Request<DeleteQuery>,
-    ) -> Result<Response<DeleteResponse>, Status> {
-        let request = request.into_inner();
+        request: Request<DeleteKeyspacesQuery>,
+    ) -> Result<Response<DeleteKeyspacesResponse>, Status> {
         let mut store = self.store.lock().unwrap();
-
-        let ks = store.get_keyspace(request.keyspace.clone()).unwrap();
+        let request = request.into_inner();
 
         let errors = request
-            .keys
+            .keyspaces
             .iter()
-            .map(|k| match ks.delete(k.as_slice()) {
-                Ok(_) => None,
-                Err(e) => Some(DeleteError {
-                    key: k.clone(),
-                    reason: format!("{}", e),
+            .map(|ks| match store.create_keyspace(ks.clone()) {
+                Some(_) => None,
+                None => Some(DeleteKeyspaceError {
+                    keyspace: ks.clone(),
+                    reason: format!("Could not delete keyspace"),
                 }),
             })
             .flatten()
             .collect();
 
-        let reply = DeleteResponse {
-            keyspace: request.keyspace,
-            errors,
-        };
+        let reply = DeleteKeyspacesResponse { errors: errors };
 
         Ok(Response::new(reply))
     }

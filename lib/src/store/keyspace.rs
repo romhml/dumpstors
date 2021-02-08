@@ -1,6 +1,8 @@
 use sled;
 use std::sync::Arc;
 
+tonic::include_proto!("dumpstors.store.keyspace");
+
 #[derive(Clone, Debug)]
 pub struct Keyspace {
     name: String,
@@ -15,7 +17,7 @@ impl Keyspace {
         }
     }
 
-    pub fn get(&mut self, key: &[u8]) -> sled::Result<Option<sled::IVec>> {
+    pub fn get(&self, key: &[u8]) -> sled::Result<Option<sled::IVec>> {
         self.db.get(key)
     }
 

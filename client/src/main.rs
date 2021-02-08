@@ -2,39 +2,111 @@ use structopt::StructOpt;
 
 use tonic::Request;
 
-use dumpstors_lib::dumpstors_client::DumpstorsClient;
-use dumpstors_lib::*;
+use dumpstors_lib::models::Record;
+
+use dumpstors_lib::{ store, store::keyspace};
+use dumpstors_lib::store::keyspace::{keyspace_client::KeyspaceClient};
+use dumpstors_lib::store::{store_client::StoreClient};
 
 #[derive(Debug, StructOpt)]
-struct GetQueryOpt {
+struct CreateKeyspaceOpt {
+    #[structopt(short, long)]
+    keyspace: String,
+}
+
+#[derive(Debug, StructOpt)]
+struct GetKeyspaceOpt {
+    #[structopt(short, long)]
+    keyspace: String,
+}
+
+#[derive(Debug, StructOpt)]
+struct DeleteKeyspaceOpt {
+    keyspace: String,
+}
+
+#[derive(Debug, StructOpt)]
+pub enum KeyspaceCommand {
+    Create(CreateKeyspaceOpt),
+    Get(GetKeyspaceOpt),
+    Delete(DeleteKeyspaceOpt)
+}
+
+#[derive(Debug, StructOpt)]
+struct KeyInsertOpt {
+    #[structopt(long)]
+    keyspace: String,
+
+    #[structopt(long)]
+    key: String,
+
+    #[structopt(long)]
+    value: String
+}
+
+#[derive(Debug, StructOpt)]
+struct KeyGetOpt {
+    #[structopt(long)]
+    keyspace: String,
+    #[structopt(long)]
+    key: String
+}
+
+#[derive(Debug, StructOpt)]
+struct KeyDeleteOpt {
+    #[structopt(long)]
+    keyspace: String,
+
+    key: String
+}
+
+#[derive(Debug, StructOpt)]
+pub enum KeyCommand {
+    Insert(KeyInsertOpt),
+    Get(KeyGetOpt),
+    Delete(KeyDeleteOpt)
+}
+
+#[derive(Debug, StructOpt)]
+pub enum Command {
+    Keys(KeyCommand),
+    Keyspaces(KeyspaceCommand),
+}
+
+#[derive(Debug, StructOpt)]
+struct QueryOpt {
     bootstrap: String,
+
+    #[structopt(flatten)]
+    command: Command
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = GetQueryOpt::from_args();
+    let args = QueryOpt::from_args();
 
     println!("{:?}", args);
-    let mut client = DumpstorsClient::connect(args.bootstrap.clone()).await?;
 
-    let req = Request::new(InsertQuery {
-        keyspace: String::from("ks1"),
-        records: vec![Record {
-            key: vec![0],
-            value: vec![0, 1, 2, 3],
-        }],
-    });
+    match args.command {
 
-    let response = client.insert_keys(req).await?;
-    println!("{:?}", response);
+        Command::Keys(k) => {
+            let mut client = KeyspaceClient::connect(args.bootstrap.clone()).await.unwrap();
+            match k {
+                KeyCommand::Get(args) => client.get_keys(Request::new(keyspace::GetQuery { keyspace: args.keyspace, keys: vec![args.key.into_bytes()] })),
+                KeyCommand::Insert(args) => client.insert_keys(Request::new(keyspace::InsertQuery { keyspace: args.keyspace, records: vec![{ value: vec![args.value.into_bytes()], key: vec![args.key.into_bytes()] }])),
+                KeyCommand::Delete(args) => client.delete_keys(Request::new(keyspace::DeleteQuery { keyspace: args.keyspace, keys: vec![args.key.into_bytes()] })),
+            };
+        }
 
-    let req = Request::new(GetQuery {
-        keyspace: String::from("ks1"),
-        keys: vec![vec![0]],
-    });
-
-    let response = client.get_keys(req).await?;
-    println!("RESPONSE\n{:?}", response);
+        Command::Keyspaces(ks) => {
+            let mut client = StoreClient::connect(args.bootstrap.clone()).await.unwrap();
+            match ks {
+                KeyspaceCommand::Get(args) => client.get_keyspaces(Request::new(store::GetKeyspacesQuery { keyspaces: vec![args.keyspace] })),
+                KeyspaceCommand::Create(args) => client.create_keyspaces(Request::new(store::CreateKeyspacesQuery { keyspaces: vec![args.keyspace] })),
+                KeyspaceCommand::Delete(args) => client.delete_keyspaces(Request::new(store::DeleteKeyspacesQuery { keyspaces: vec![args.keyspace] }))
+            }
+        }
+    }
 
     Ok(())
 }

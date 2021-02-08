@@ -1,13 +1,7 @@
 syntax = "proto3";
+package dumpstors.store.keyspace;
 
-package dumpstors;
-
-import "google/protobuf/empty.proto";
-
-message Record {
-  bytes key = 1;
-  bytes value = 2;
-}
+import "proto/models.proto";
 
 message GetQuery {
   string keyspace = 1;
@@ -16,12 +10,12 @@ message GetQuery {
 
 message GetResponse {
   string keyspace = 1;
-  repeated Record records = 2;
+  repeated dumpstors.models.Record records = 2;
 }
 
 message InsertQuery {
   string keyspace = 1;
-  repeated Record records = 2;
+  repeated dumpstors.models.Record records = 2;
 }
 
 message InsertError {
@@ -49,9 +43,9 @@ message DeleteError {
   string reason = 2;
 }
 
-service Dumpstors {
-  rpc Ping (google.protobuf.Empty) returns (google.protobuf.Empty);
+service Keyspace {
   rpc GetKeys (GetQuery) returns (GetResponse);
   rpc InsertKeys (InsertQuery) returns (InsertResponse);
   rpc DeleteKeys (DeleteQuery) returns (DeleteResponse);
 }
+

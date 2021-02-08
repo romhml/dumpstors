@@ -1,4 +1,6 @@
-mod keyspace;
+tonic::include_proto!("dumpstors.store");
+
+pub mod keyspace;
 
 use std::collections::HashMap;
 use std::fs::read_dir;
@@ -40,6 +42,11 @@ impl Store {
 
     pub fn get_keyspace(&mut self, ks: String) -> Option<&mut Keyspace> {
         self.keyspaces.get_mut(&ks)
+    }
+
+    pub fn delete_keyspace(&mut self, ks: String) -> () {
+        self.keyspaces.remove(&ks);
+        std::fs::remove_dir_all(format!("{}/{}", self.path, ks)).unwrap();
     }
 }
 

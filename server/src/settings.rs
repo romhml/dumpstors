@@ -18,7 +18,7 @@ impl Settings {
 
         s.set("listen_addr", "127.0.0.1")?;
         s.set("port", "4242")?;
-        s.set("store.path", "/.data")?;
+        s.set("store.path", "./.data")?;
 
         s.try_into()
     }

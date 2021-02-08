@@ -4,7 +4,14 @@ use std::process::exit;
 fn run() -> Result<(), Box<dyn Error>> {
     tonic_build::configure()
         // .format(false) // disable code formatting since docs.rs will otherwise break
-        .compile(&["proto/dumpstors.proto"], &["."])?;
+        .compile(
+            &[
+                "proto/models.proto",
+                "proto/store/store.proto",
+                "proto/store/keyspace.proto",
+            ],
+            &["."],
+        )?;
     Ok(())
 }
 
@@ -14,5 +21,5 @@ fn main() {
         exit(1);
     }
 
-    println!("cargo:rerun-if-changed=dumpstors.proto");
+    println!("cargo:rerun-if-changed=proto/");
 }

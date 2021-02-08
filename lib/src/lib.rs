@@ -1,4 +1,5 @@
-pub mod models;
 pub mod store;
 
-tonic::include_proto!("dumpstors");
+pub mod models {
+    tonic::include_proto!("dumpstors.models");
+}
