@@ -26,7 +26,7 @@ struct DeleteKeyspaceOpt {
 }
 
 #[derive(Debug, StructOpt)]
-pub enum KeyspaceCommand {
+enum KeyspaceCommand {
     Create(CreateKeyspaceOpt),
     Get(GetKeyspaceOpt),
     Delete(DeleteKeyspaceOpt),
@@ -61,14 +61,14 @@ struct KeyDeleteOpt {
 }
 
 #[derive(Debug, StructOpt)]
-pub enum KeyCommand {
+enum KeyCommand {
     Insert(KeyInsertOpt),
     Get(KeyGetOpt),
     Delete(KeyDeleteOpt),
 }
 
 #[derive(Debug, StructOpt)]
-pub enum Command {
+enum Command {
     Keys(KeyCommand),
     Keyspaces(KeyspaceCommand),
 }
