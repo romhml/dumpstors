@@ -1,7 +1,7 @@
 #![feature(allocator_api)]
 use structopt::StructOpt;
 
-use tonic::{Request, Response, Status};
+use tonic::{Request, Response};
 
 use dumpstors_lib::models::Record;
 
@@ -94,9 +94,6 @@ enum QueryResult {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = QueryOpt::from_args();
-
-    println!("{:?}", args);
-
     let mut client = StoreClient::connect(args.bootstrap.clone()).await.unwrap();
 
     let resp: QueryResult = match args.command {
