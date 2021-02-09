@@ -7,7 +7,7 @@ use tonic::transport::Server;
 
 use dumpstors_lib::store::Store;
 
-use dumpstors_lib::store::{keyspace::keyspace_server, store_server};
+use dumpstors_lib::store::store_server::StoreServer;
 
 mod settings;
 mod store;
@@ -18,13 +18,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let sockaddr = format!("{}:{}", conf.listen_addr, conf.port);
 
     let store = Arc::new(Mutex::new(Store::new(conf.store.path)));
-
     let store_srv = store::DumpstorsStoreServer::new(store.clone());
-    let key_srv = store::keyspace::DumpstorsKeyspaceServer::new(store.clone());
 
     Server::builder()
-        .add_service(store_server::StoreServer::new(store_srv))
-        .add_service(keyspace_server::KeyspaceServer::new(key_srv))
+        .add_service(StoreServer::new(store_srv))
         .serve(sockaddr.parse()?)
         .await?;
 

@@ -1,0 +1,91 @@
+syntax = "proto3";
+package dumpstors.store;
+
+import "google/protobuf/empty.proto";
+import "proto/models.proto";
+
+message GetQuery {
+  string keyspace = 1;
+  repeated bytes keys = 2;
+}
+
+message GetResponse {
+  string keyspace = 1;
+  repeated dumpstors.models.Record records = 2;
+}
+
+message InsertQuery {
+  string keyspace = 1;
+  repeated dumpstors.models.Record records = 2;
+}
+
+message InsertError {
+  bytes key = 1;
+  string reason = 2;
+}
+
+message InsertResponse {
+  string keyspace = 1;
+  repeated InsertError errors = 2;
+}
+
+message DeleteQuery {
+  string keyspace = 1;
+  repeated bytes keys = 2;
+}
+
+message DeleteResponse {
+  string keyspace = 1;
+  repeated DeleteError errors = 2;
+}
+
+message DeleteError {
+  bytes key = 1;
+  string reason = 2;
+}
+
+message GetKeyspacesQuery {
+  repeated string keyspaces = 1;
+}
+
+message GetKeyspacesResponse {
+  repeated string keyspaces = 1;
+}
+
+message CreateKeyspacesQuery {
+  repeated string keyspaces = 1;
+}
+
+message CreateKeyspaceError {
+  string keyspace = 1;
+  string reason = 2;
+}
+
+message CreateKeyspacesResponse {
+  repeated CreateKeyspaceError errors = 1;
+}
+
+message DeleteKeyspacesQuery {
+  repeated string keyspaces = 1;
+}
+
+message DeleteKeyspacesResponse {
+  repeated DeleteKeyspaceError errors = 1;
+}
+
+message DeleteKeyspaceError {
+  string keyspace = 1;
+  string reason = 2;
+}
+
+service Store {
+  rpc Ping (google.protobuf.Empty) returns (google.protobuf.Empty);
+
+  rpc GetKeyspaces (GetKeyspacesQuery) returns (GetKeyspacesResponse);
+  rpc CreateKeyspaces (CreateKeyspacesQuery) returns (CreateKeyspacesResponse);
+  rpc DeleteKeyspaces (DeleteKeyspacesQuery) returns (DeleteKeyspacesResponse);
+
+  rpc GetKeys (GetQuery) returns (GetResponse);
+  rpc InsertKeys (InsertQuery) returns (InsertResponse);
+  rpc DeleteKeys (DeleteQuery) returns (DeleteResponse);
+}

@@ -1,8 +1,6 @@
 use sled;
 use std::sync::Arc;
 
-tonic::include_proto!("dumpstors.store.keyspace");
-
 #[derive(Clone, Debug)]
 pub struct Keyspace {
     name: String,
