@@ -9,9 +9,15 @@ message GetQuery {
   repeated bytes keys = 2;
 }
 
+message GetError {
+  bytes key = 1;
+  string reason = 2;
+}
+
 message GetResponse {
   string keyspace = 1;
   repeated dumpstors.models.Record records = 2;
+  repeated GetError errors = 3;
 }
 
 message InsertQuery {
@@ -34,22 +40,28 @@ message DeleteQuery {
   repeated bytes keys = 2;
 }
 
-message DeleteResponse {
-  string keyspace = 1;
-  repeated DeleteError errors = 2;
-}
-
 message DeleteError {
   bytes key = 1;
   string reason = 2;
+}
+
+message DeleteResponse {
+  string keyspace = 1;
+  repeated DeleteError errors = 2;
 }
 
 message GetKeyspacesQuery {
   repeated string keyspaces = 1;
 }
 
+message GetKeyspaceError {
+  string keyspace = 1;
+  string reason = 2;
+}
+
 message GetKeyspacesResponse {
-  repeated string keyspaces = 1;
+  repeated dumpstors.models.Keyspace keyspaces = 1;
+  repeated GetKeyspaceError errors = 2;
 }
 
 message CreateKeyspacesQuery {

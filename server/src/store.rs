@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use rayon::prelude::*;
 use tonic::{Request, Response, Status};
 
-use dumpstors_lib::models::Record;
+use dumpstors_lib::models::*;
 use dumpstors_lib::store::Store;
 use dumpstors_lib::store::*;
 
@@ -29,10 +29,24 @@ impl store_server::Store for DumpstorsStoreServer {
         &self,
         request: Request<GetKeyspacesQuery>,
     ) -> StdResult<Response<GetKeyspacesResponse>, Status> {
-        let mut _store = self.store.lock();
-        let _request = request.into_inner();
+        let mut store = self.store.lock().unwrap();
+        let request = request.into_inner();
 
-        let reply = GetKeyspacesResponse { keyspaces: vec![] };
+        let keyspaces = request
+            .keyspaces
+            .into_iter()
+            .map(|ks| match store.get_keyspace(ks.to_string()) {
+                Ok(k) => Some(Keyspace::from(k.clone())),
+                // TODO: Find a way to efficiently return errors
+                Err(_e) => None,
+            })
+            .flatten()
+            .collect();
+
+        let reply = GetKeyspacesResponse {
+            keyspaces,
+            errors: vec![],
+        };
 
         Ok(Response::new(reply))
     }
@@ -100,17 +114,22 @@ impl store_server::Store for DumpstorsStoreServer {
             .keys
             .par_iter()
             .map(|k| {
-                let value = ks.get(k.as_slice()).unwrap();
-                Record {
-                    key: k.clone(),
-                    value: value,
+                match ks.get(k.as_slice()) {
+                    Ok(value) => Some(Record {
+                        key: k.clone(),
+                        value: value,
+                    }),
+                    // TODO: Find a way to efficiently return errors
+                    Err(_e) => None,
                 }
             })
+            .flatten()
             .collect();
 
         let reply = GetResponse {
             keyspace: request.keyspace,
             records,
+            errors: vec![],
         };
 
         Ok(Response::new(reply))
