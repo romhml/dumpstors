@@ -18,10 +18,10 @@ impl Keyspace {
         })
     }
 
-    pub fn get(&self, key: &[u8]) -> Result<Option<sled::IVec>> {
-        match self.db.get(key) {
-            Ok(v) => Ok(v),
-            Err(e) => Err(Error::SledErr(e)),
+    pub fn get(&self, key: &[u8]) -> Result<Vec<u8>> {
+        match self.db.get(key)? {
+            Some(v) => Ok(v.to_vec()),
+            None => Err(Error::KeyNotFound),
         }
     }
 
@@ -31,28 +31,58 @@ impl Keyspace {
     }
 
     pub fn delete(&mut self, key: &[u8]) -> Result<()> {
-        self.db.remove(key)?;
-        Ok(())
+        match self.db.remove(key)? {
+            Some(_) => Ok(()),
+            None => Err(Error::KeyNotFound),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uuid::Uuid;
+
+    fn create_random_keyspace() -> Keyspace {
+        let path = format!(".data/{}", Uuid::new_v4());
+        Keyspace::new(path, String::from("ks")).unwrap()
+    }
 
     #[test]
     fn get_key() {
-        let mut ks = Keyspace::new(String::from(".data"), String::from("ks1")).unwrap();
+        let mut ks = create_random_keyspace();
         ks.insert(b"foo", b"bar").unwrap();
-        assert_eq!(ks.get(b"foo").unwrap(), Some(sled::IVec::from(b"bar")));
-        assert_eq!(ks.get(b"bar").unwrap(), None);
+        assert_eq!(ks.get(b"foo").unwrap(), b"bar");
+    }
+
+    #[test]
+    fn get_inexistant_key() {
+        let ks = create_random_keyspace();
+        match ks.get(b"foo") {
+            Err(Error::KeyNotFound) => assert!(true),
+            _ => assert!(false, "Key should not exist"),
+        };
+    }
+
+    #[test]
+    fn insert_existing_key() {
+        let mut ks = create_random_keyspace();
+        ks.insert(b"foo", b"bar").unwrap();
+        assert_eq!(ks.get(b"foo").unwrap(), b"bar");
+
+        ks.insert(b"foo", b"dar").unwrap();
+        assert_eq!(ks.get(b"foo").unwrap(), b"dar");
     }
 
     #[test]
     fn delete_key() {
-        let mut ks = Keyspace::new(String::from(".data"), String::from("ks2")).unwrap();
+        let mut ks = create_random_keyspace();
         ks.insert(b"foo", b"bar").unwrap();
         ks.delete(b"foo").unwrap();
-        assert_eq!(ks.get(b"foo").unwrap(), None);
+
+        match ks.get(b"foo") {
+            Err(Error::KeyNotFound) => assert!(true),
+            _ => assert!(false, "Key should not exist after being deleted"),
+        };
     }
 }

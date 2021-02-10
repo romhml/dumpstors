@@ -100,10 +100,10 @@ impl store_server::Store for DumpstorsStoreServer {
             .keys
             .par_iter()
             .map(|k| {
-                let value = ks.get(k.as_slice()).unwrap().unwrap();
+                let value = ks.get(k.as_slice()).unwrap();
                 Record {
                     key: k.clone(),
-                    value: value.to_vec(),
+                    value: value,
                 }
             })
             .collect();

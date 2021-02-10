@@ -106,7 +106,7 @@ mod tests {
     use uuid::Uuid;
 
     fn create_random_store() -> Store {
-        Store::new(String::from(format!(".data/{}", Uuid::new_v4())))
+        Store::new(format!(".data/{}", Uuid::new_v4()))
     }
 
     #[test]
@@ -116,7 +116,7 @@ mod tests {
         store.create_keyspace(String::from("ks2")).unwrap();
         store.delete_keyspace(String::from("ks2")).unwrap();
 
-        let mut store_bis = Store::new(store.path.clone());
+        let store_bis = Store::new(store.path.clone());
 
         assert_eq!(
             store.keyspaces.keys().cloned().collect::<Vec<String>>(),
