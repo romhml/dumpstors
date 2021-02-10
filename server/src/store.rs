@@ -7,6 +7,8 @@ use dumpstors_lib::models::Record;
 use dumpstors_lib::store::Store;
 use dumpstors_lib::store::*;
 
+use std::result::Result as StdResult;
+
 pub struct DumpstorsStoreServer {
     store: Arc<Mutex<Store>>,
 }
@@ -19,14 +21,14 @@ impl DumpstorsStoreServer {
 
 #[tonic::async_trait]
 impl store_server::Store for DumpstorsStoreServer {
-    async fn ping(&self, _request: Request<()>) -> Result<Response<()>, Status> {
+    async fn ping(&self, _request: Request<()>) -> StdResult<Response<()>, Status> {
         Ok(Response::new(()))
     }
 
     async fn get_keyspaces(
         &self,
         request: Request<GetKeyspacesQuery>,
-    ) -> Result<Response<GetKeyspacesResponse>, Status> {
+    ) -> StdResult<Response<GetKeyspacesResponse>, Status> {
         let mut _store = self.store.lock();
         let _request = request.into_inner();
 
@@ -38,7 +40,7 @@ impl store_server::Store for DumpstorsStoreServer {
     async fn create_keyspaces(
         &self,
         request: Request<CreateKeyspacesQuery>,
-    ) -> Result<Response<CreateKeyspacesResponse>, Status> {
+    ) -> StdResult<Response<CreateKeyspacesResponse>, Status> {
         let mut store = self.store.lock().unwrap();
         let request = request.into_inner();
 
@@ -46,10 +48,10 @@ impl store_server::Store for DumpstorsStoreServer {
             .keyspaces
             .iter()
             .map(|ks| match store.create_keyspace(ks.clone()) {
-                Some(_) => None,
-                None => Some(CreateKeyspaceError {
+                Ok(_) => None,
+                Err(e) => Some(CreateKeyspaceError {
                     keyspace: ks.clone(),
-                    reason: format!("Could not create keyspace"),
+                    reason: format!("{:?}", e),
                 }),
             })
             .flatten()
@@ -63,7 +65,7 @@ impl store_server::Store for DumpstorsStoreServer {
     async fn delete_keyspaces(
         &self,
         request: Request<DeleteKeyspacesQuery>,
-    ) -> Result<Response<DeleteKeyspacesResponse>, Status> {
+    ) -> StdResult<Response<DeleteKeyspacesResponse>, Status> {
         let mut store = self.store.lock().unwrap();
         let request = request.into_inner();
 
@@ -71,10 +73,10 @@ impl store_server::Store for DumpstorsStoreServer {
             .keyspaces
             .iter()
             .map(|ks| match store.create_keyspace(ks.clone()) {
-                Some(_) => None,
-                None => Some(DeleteKeyspaceError {
+                Ok(_) => None,
+                Err(e) => Some(DeleteKeyspaceError {
                     keyspace: ks.clone(),
-                    reason: format!("Could not delete keyspace"),
+                    reason: format!("{:?}", e),
                 }),
             })
             .flatten()
@@ -85,10 +87,13 @@ impl store_server::Store for DumpstorsStoreServer {
         Ok(Response::new(reply))
     }
 
-    async fn get_keys(&self, request: Request<GetQuery>) -> Result<Response<GetResponse>, Status> {
-        let request = request.into_inner();
+    async fn get_keys(
+        &self,
+        request: Request<GetQuery>,
+    ) -> StdResult<Response<GetResponse>, Status> {
         let mut store = self.store.lock().unwrap();
 
+        let request = request.into_inner();
         let ks = store.get_keyspace(request.keyspace.clone()).unwrap();
 
         let records = request
@@ -114,7 +119,7 @@ impl store_server::Store for DumpstorsStoreServer {
     async fn insert_keys(
         &self,
         request: Request<InsertQuery>,
-    ) -> Result<Response<InsertResponse>, Status> {
+    ) -> StdResult<Response<InsertResponse>, Status> {
         let request = request.into_inner();
         let mut store = self.store.lock().unwrap();
 
@@ -127,7 +132,7 @@ impl store_server::Store for DumpstorsStoreServer {
                 Ok(_) => None,
                 Err(e) => Some(InsertError {
                     key: r.key.clone(),
-                    reason: format!("{}", e),
+                    reason: format!("{:?}", e),
                 }),
             })
             .flatten()
@@ -144,7 +149,7 @@ impl store_server::Store for DumpstorsStoreServer {
     async fn delete_keys(
         &self,
         request: Request<DeleteQuery>,
-    ) -> Result<Response<DeleteResponse>, Status> {
+    ) -> StdResult<Response<DeleteResponse>, Status> {
         let request = request.into_inner();
         let mut store = self.store.lock().unwrap();
 
@@ -157,7 +162,7 @@ impl store_server::Store for DumpstorsStoreServer {
                 Ok(_) => None,
                 Err(e) => Some(DeleteError {
                     key: k.clone(),
-                    reason: format!("{}", e),
+                    reason: format!("{:?}", e),
                 }),
             })
             .flatten()

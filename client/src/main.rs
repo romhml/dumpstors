@@ -73,7 +73,7 @@ enum Command {
 
 #[derive(Debug, StructOpt)]
 struct QueryOpt {
-    #[structopt(short, long)]
+    #[structopt(short, long, default_value = "http://localhost:4242")]
     bootstrap: String,
 
     #[structopt(flatten)]
