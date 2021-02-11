@@ -1,4 +1,3 @@
-#![feature(allocator_api)]
 use structopt::StructOpt;
 
 use tonic::{Request, Response};
