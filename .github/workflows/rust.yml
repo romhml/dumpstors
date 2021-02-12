@@ -80,6 +80,10 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path-to-lcov: ${{ steps.coverage.outputs.report }}
 
+    - uses: codecov/codecov-action@v1
+      with:
+        files:  ${{ steps.coverage.outputs.report }}
+
   bench:
     runs-on: ubuntu-latest
     steps:
