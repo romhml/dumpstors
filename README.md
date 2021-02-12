@@ -1,1 +1,2 @@
+![CI](https://github.com/romhml/dumpstors/workflows/Rust%20Checks/badge.svg) [![Coverage Status](https://coveralls.io/repos/github/romhml/dumpstors/badge.svg?branch=main)](https://coveralls.io/github/romhml/dumpstors?branch=main) ![Security audit](https://github.com/romhml/dumpstors/workflows/Security%20audit/badge.svg)
 # dumpstors
