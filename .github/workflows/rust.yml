@@ -1,4 +1,4 @@
-name: Check
+name: Rust Check
 
 on:
   push:
@@ -50,7 +50,7 @@ jobs:
         with:
           toolchain: nightly
           override: true
-          components: rustfmt
+          components: rustfmt, clippy
 
     - uses: actions/cache@v2
       with:
@@ -80,7 +80,7 @@ jobs:
           profile: minimal
           toolchain: nightly
           override: true
-          components: rustfmt
+          components: rustfmt, clippy
 
     - uses: actions/cache@v2
       with:
