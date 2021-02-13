@@ -2,7 +2,7 @@ use structopt::StructOpt;
 
 use tonic::{Request, Response};
 
-use dumpstors_lib::models::Record;
+use dumpstors_lib::models::{Keyspace, Record};
 
 use dumpstors_lib::store;
 use dumpstors_lib::store::store_client::StoreClient;
@@ -125,7 +125,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             KeyspaceCommand::Create(args) => QueryResult::CreateKeyspace(
                 client
                     .create_keyspaces(Request::new(store::CreateKeyspacesQuery {
-                        keyspaces: vec![args.keyspace],
+                        keyspaces: vec![Keyspace {
+                            name: args.keyspace,
+                        }],
                     }))
                     .await?,
             ),

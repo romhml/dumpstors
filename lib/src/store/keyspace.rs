@@ -1,6 +1,5 @@
 use super::Error;
 use super::Result;
-use sled;
 
 use std::sync::Arc;
 

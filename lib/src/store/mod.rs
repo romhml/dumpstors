@@ -1,13 +1,13 @@
 tonic::include_proto!("dumpstors.store");
 pub mod keyspace;
 
+use sled::Error as SledError;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Error as IoError;
 use std::result::Result as StdResult;
 
-use sled::Error as SledError;
-
+use super::models;
 use keyspace::Keyspace;
 
 #[derive(Debug)]
@@ -72,12 +72,12 @@ impl Store {
         Self { keyspaces, path }
     }
 
-    pub fn create_keyspace(&mut self, ks: String) -> Result<()> {
-        if let Ok(_) = self.get_keyspace(ks.clone()) {
+    pub fn create_keyspace(&mut self, ks: models::Keyspace) -> Result<()> {
+        if self.get_keyspace(ks.name.clone()).is_ok() {
             Err(Error::KeyspaceAlreadyExists)
         } else {
-            let keyspace = Keyspace::new(self.path.clone(), ks.clone())?;
-            self.keyspaces.insert(ks.clone(), keyspace);
+            let keyspace = Keyspace::new(self.path.clone(), ks.name.clone())?;
+            self.keyspaces.insert(ks.name, keyspace);
             Ok(())
         }
     }
@@ -112,9 +112,15 @@ mod tests {
     #[test]
     fn load_keyspaces_works() {
         let mut store = create_random_store();
-        store.create_keyspace(String::from("ks1")).unwrap();
-        store.create_keyspace(String::from("ks2")).unwrap();
-        store.delete_keyspace(String::from("ks2")).unwrap();
+        let ks1 = models::Keyspace {
+            name: String::from("ks1"),
+        };
+        let ks2 = models::Keyspace {
+            name: String::from("ks2"),
+        };
+        store.create_keyspace(ks1).unwrap();
+        store.create_keyspace(ks2.clone()).unwrap();
+        store.delete_keyspace(ks2.name).unwrap();
 
         let store_bis = Store::new(store.path.clone());
 
@@ -127,18 +133,24 @@ mod tests {
     #[test]
     fn get_keyspace() {
         let mut store = create_random_store();
-        let ks_name = String::from("ks");
+        let ks1 = models::Keyspace {
+            name: String::from("ks1"),
+        };
 
-        store.create_keyspace(ks_name.clone()).unwrap();
-        store.get_keyspace(ks_name.clone()).unwrap();
+        store.create_keyspace(ks1.clone()).unwrap();
+        let res = store.get_keyspace(ks1.name.clone()).unwrap();
+
+        assert_eq!(ks1, models::Keyspace::from(res.clone()));
     }
 
     #[test]
     fn get_inexistant_keyspace() {
         let mut store = create_random_store();
-        let ks_name = String::from("ks");
+        let ks1 = models::Keyspace {
+            name: String::from("ks1"),
+        };
 
-        match store.get_keyspace(ks_name.clone()) {
+        match store.get_keyspace(ks1.name) {
             Err(Error::KeyspaceNotFound) => assert!(true),
             _ => assert!(false, "Keyspace should not exist"),
         };
@@ -147,11 +159,13 @@ mod tests {
     #[test]
     fn create_existing_keyspace() {
         let mut store = create_random_store();
-        let ks_name = String::from("ks");
+        let ks1 = models::Keyspace {
+            name: String::from("ks1"),
+        };
 
-        store.create_keyspace(ks_name.clone()).unwrap();
+        store.create_keyspace(ks1.clone()).unwrap();
 
-        match store.create_keyspace(ks_name.clone()) {
+        match store.create_keyspace(ks1.clone()) {
             Err(Error::KeyspaceAlreadyExists) => assert!(true),
             _ => assert!(false, "Keyspace should already exist"),
         };
@@ -160,12 +174,14 @@ mod tests {
     #[test]
     fn delete_keyspace() {
         let mut store = create_random_store();
-        let ks_name = String::from("ks");
+        let ks1 = models::Keyspace {
+            name: String::from("ks1"),
+        };
 
-        store.create_keyspace(ks_name.clone()).unwrap();
-        store.delete_keyspace(ks_name.clone()).unwrap();
+        store.create_keyspace(ks1.clone()).unwrap();
+        store.delete_keyspace(ks1.name.clone()).unwrap();
 
-        match store.get_keyspace(ks_name.clone()) {
+        match store.get_keyspace(ks1.name.clone()) {
             Err(Error::KeyspaceNotFound) => assert!(true),
             _ => assert!(false, "Keyspace should not exist after delete"),
         };

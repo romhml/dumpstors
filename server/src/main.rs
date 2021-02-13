@@ -5,9 +5,8 @@ extern crate serde_derive;
 use std::sync::{Arc, Mutex};
 use tonic::transport::Server;
 
-use dumpstors_lib::store::Store;
-
 use dumpstors_lib::store::store_server::StoreServer;
+use dumpstors_lib::store::Store;
 
 mod settings;
 mod store;

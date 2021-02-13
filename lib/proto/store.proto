@@ -65,11 +65,11 @@ message GetKeyspacesResponse {
 }
 
 message CreateKeyspacesQuery {
-  repeated string keyspaces = 1;
+  repeated dumpstors.models.Keyspace keyspaces = 1;
 }
 
 message CreateKeyspaceError {
-  string keyspace = 1;
+  dumpstors.models.Keyspace keyspace = 1;
   string reason = 2;
 }
 
