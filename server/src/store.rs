@@ -1,9 +1,9 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use rayon::prelude::*;
-use tonic::{Request, Response, Status};
+use tonic::{Request, Response, Status, Code};
 
-use dumpstors_lib::models::*;
+use dumpstors_lib::models;
 use dumpstors_lib::store::store_server;
 use dumpstors_lib::store::*;
 
@@ -14,6 +14,14 @@ pub struct DumpstorsStoreServer {
 }
 
 impl DumpstorsStoreServer {
+    fn get_store_guard(&self) -> StdResult<MutexGuard<Store>, Status>{
+        match self.store.lock() {
+            Ok(store) => Ok(store),
+            // TODO: Find proper way to shutdown Tokio
+            Err(e) => panic!("{:?}\nPoisonError on store Mutex. Shutting down.", e)
+        }
+    }
+
     pub fn new(store: Arc<Mutex<Store>>) -> Self {
         Self { store }
     }
@@ -21,6 +29,7 @@ impl DumpstorsStoreServer {
 
 #[tonic::async_trait]
 impl store_server::Store for DumpstorsStoreServer {
+
     async fn ping(&self, _request: Request<()>) -> StdResult<Response<()>, Status> {
         Ok(Response::new(()))
     }
@@ -29,14 +38,14 @@ impl store_server::Store for DumpstorsStoreServer {
         &self,
         request: Request<GetKeyspacesQuery>,
     ) -> StdResult<Response<GetKeyspacesResponse>, Status> {
-        let mut store = self.store.lock().unwrap();
+        let mut store = self.get_store_guard()?;
         let request = request.into_inner();
 
         let keyspaces = request
             .keyspaces
             .into_iter()
             .map(|ks| match store.get_keyspace(ks) {
-                Ok(k) => Some(Keyspace::from(k.clone())),
+                Ok(k) => Some(models::Keyspace::from(k.clone())),
                 // TODO: Find a way to efficiently return errors
                 Err(_e) => None,
             })
@@ -55,7 +64,7 @@ impl store_server::Store for DumpstorsStoreServer {
         &self,
         request: Request<CreateKeyspacesQuery>,
     ) -> StdResult<Response<CreateKeyspacesResponse>, Status> {
-        let mut store = self.store.lock().unwrap();
+        let mut store = self.get_store_guard()?;
         let request = request.into_inner();
 
         let errors = request
@@ -80,7 +89,7 @@ impl store_server::Store for DumpstorsStoreServer {
         &self,
         request: Request<DeleteKeyspacesQuery>,
     ) -> StdResult<Response<DeleteKeyspacesResponse>, Status> {
-        let mut store = self.store.lock().unwrap();
+        let mut store = self.get_store_guard()?;
         let request = request.into_inner();
 
         let errors = request
@@ -105,17 +114,16 @@ impl store_server::Store for DumpstorsStoreServer {
         &self,
         request: Request<GetQuery>,
     ) -> StdResult<Response<GetResponse>, Status> {
-        let mut store = self.store.lock().unwrap();
-
+        let mut store = self.get_store_guard()?;
         let request = request.into_inner();
-        let ks = store.get_keyspace(request.keyspace.clone()).unwrap();
+        let ks = store.get_keyspace(request.keyspace.clone())?;
 
         let records = request
             .keys
             .par_iter()
             .map(|k| {
                 match ks.get(k.as_slice()) {
-                    Ok(value) => Some(Record {
+                    Ok(value) => Some(models::Record {
                         key: k.clone(),
                         value,
                     }),
@@ -140,9 +148,8 @@ impl store_server::Store for DumpstorsStoreServer {
         request: Request<InsertQuery>,
     ) -> StdResult<Response<InsertResponse>, Status> {
         let request = request.into_inner();
-        let mut store = self.store.lock().unwrap();
-
-        let ks = store.get_keyspace(request.keyspace.clone()).unwrap();
+        let mut store = self.get_store_guard()?;
+        let ks = store.get_keyspace(request.keyspace.clone())?;
 
         let errors = request
             .records
@@ -170,9 +177,8 @@ impl store_server::Store for DumpstorsStoreServer {
         request: Request<DeleteQuery>,
     ) -> StdResult<Response<DeleteResponse>, Status> {
         let request = request.into_inner();
-        let mut store = self.store.lock().unwrap();
-
-        let ks = store.get_keyspace(request.keyspace.clone()).unwrap();
+        let mut store = self.get_store_guard()?;
+        let ks = store.get_keyspace(request.keyspace.clone())?;
 
         let errors = request
             .keys
