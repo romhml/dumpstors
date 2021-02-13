@@ -2,9 +2,9 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 
+use log::*;
 use std::sync::{Arc, Mutex};
 use tonic::transport::Server;
-use log::*;
 
 use dumpstors_lib::store::store_server::StoreServer;
 use dumpstors_lib::store::Store;
