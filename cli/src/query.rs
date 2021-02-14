@@ -24,10 +24,10 @@ pub struct Query {
 }
 
 fn format_bytes(bytes: &[u8]) -> String {
-  match str::from_utf8(bytes) {
-    Ok(s) => String::from(s),
-    Err(_) => format!("{:?}", bytes)
-  }
+    match str::from_utf8(bytes) {
+        Ok(s) => String::from(s),
+        Err(_) => format!("{:?}", bytes),
+    }
 }
 
 #[derive(Debug)]
@@ -38,33 +38,38 @@ pub enum QueryResult {
 }
 
 impl fmt::Display for QueryResult {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-      match self {
-          Self::Record(resp) => {
-            let record = resp.get_ref();
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Record(resp) => {
+                let record = resp.get_ref();
 
-              write!(f, "{}={}", format_bytes(record.key.as_slice()), format_bytes(record.value.as_slice()))
-          }
-          Self::Keyspace(resp) =>  write!(f, "{:?}", resp.get_ref()),
-          Self::Empty(_) =>  write!(f, ""),
-      }
-  }
+                write!(
+                    f,
+                    "{}={}",
+                    format_bytes(record.key.as_slice()),
+                    format_bytes(record.value.as_slice())
+                )
+            }
+            Self::Keyspace(resp) => write!(f, "{:?}", resp.get_ref()),
+            Self::Empty(_) => write!(f, ""),
+        }
+    }
 }
 
 impl Into<QueryResult> for Response<Record> {
-  fn into(self) -> QueryResult {
-      QueryResult::Record(self)
-  }
+    fn into(self) -> QueryResult {
+        QueryResult::Record(self)
+    }
 }
 
 impl Into<QueryResult> for Response<Keyspace> {
-  fn into(self) -> QueryResult {
-      QueryResult::Keyspace(self)
-  }
+    fn into(self) -> QueryResult {
+        QueryResult::Keyspace(self)
+    }
 }
 
 impl Into<QueryResult> for Response<()> {
-  fn into(self) -> QueryResult {
-      QueryResult::Empty(self)
-  }
+    fn into(self) -> QueryResult {
+        QueryResult::Empty(self)
+    }
 }
