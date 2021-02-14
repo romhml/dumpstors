@@ -1,7 +1,8 @@
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
-
-use rayon::prelude::*;
-use tonic::{Request, Response, Status, Code};
+use futures::Stream;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex, MutexGuard};
+use tokio::sync::mpsc;
+use tonic::{Request, Response, Status};
 
 use dumpstors_lib::models;
 use dumpstors_lib::store::store_server;
@@ -14,11 +15,11 @@ pub struct DumpstorsStoreServer {
 }
 
 impl DumpstorsStoreServer {
-    fn get_store_guard(&self) -> StdResult<MutexGuard<Store>, Status>{
+    fn get_store_guard(&self) -> StdResult<MutexGuard<Store>, Status> {
         match self.store.lock() {
             Ok(store) => Ok(store),
             // TODO: Find proper way to shutdown Tokio
-            Err(e) => panic!("{:?}\nPoisonError on store Mutex. Shutting down.", e)
+            Err(e) => panic!("{:?}\nPoisonError on store Mutex. Shutting down.", e),
         }
     }
 
@@ -29,182 +30,126 @@ impl DumpstorsStoreServer {
 
 #[tonic::async_trait]
 impl store_server::Store for DumpstorsStoreServer {
-
     async fn ping(&self, _request: Request<()>) -> StdResult<Response<()>, Status> {
         Ok(Response::new(()))
     }
 
-    async fn get_keyspaces(
+    async fn get_keyspace(
         &self,
-        request: Request<GetKeyspacesQuery>,
-    ) -> StdResult<Response<GetKeyspacesResponse>, Status> {
+        request: Request<GetKeyspaceQuery>,
+    ) -> StdResult<Response<models::Keyspace>, Status> {
         let mut store = self.get_store_guard()?;
         let request = request.into_inner();
 
-        let keyspaces = request
-            .keyspaces
-            .into_iter()
-            .map(|ks| match store.get_keyspace(ks) {
-                Ok(k) => Some(models::Keyspace::from(k.clone())),
-                // TODO: Find a way to efficiently return errors
-                Err(_e) => None,
-            })
-            .flatten()
-            .collect();
-
-        let reply = GetKeyspacesResponse {
-            keyspaces,
-            errors: vec![],
-        };
-
-        Ok(Response::new(reply))
+        let ks = store.get_keyspace(request.keyspace)?;
+        Ok(Response::new(models::Keyspace::from(ks.clone())))
     }
 
-    async fn create_keyspaces(
+    async fn create_keyspace(
         &self,
-        request: Request<CreateKeyspacesQuery>,
-    ) -> StdResult<Response<CreateKeyspacesResponse>, Status> {
+        request: Request<models::Keyspace>,
+    ) -> StdResult<Response<()>, Status> {
         let mut store = self.get_store_guard()?;
         let request = request.into_inner();
 
-        let errors = request
-            .keyspaces
-            .iter()
-            .map(|ks| match store.create_keyspace(ks.clone()) {
-                Ok(_) => None,
-                Err(e) => Some(CreateKeyspaceError {
-                    keyspace: Some(ks.clone()),
-                    reason: format!("{:?}", e),
-                }),
-            })
-            .flatten()
-            .collect();
-
-        let reply = CreateKeyspacesResponse { errors };
-
-        Ok(Response::new(reply))
+        store.create_keyspace(request)?;
+        Ok(Response::new(()))
     }
 
-    async fn delete_keyspaces(
+    async fn delete_keyspace(
         &self,
-        request: Request<DeleteKeyspacesQuery>,
-    ) -> StdResult<Response<DeleteKeyspacesResponse>, Status> {
+        request: Request<DeleteKeyspaceQuery>,
+    ) -> StdResult<Response<()>, Status> {
         let mut store = self.get_store_guard()?;
         let request = request.into_inner();
 
-        let errors = request
-            .keyspaces
-            .iter()
-            .map(|ks| match store.delete_keyspace(ks.clone()) {
-                Ok(_) => None,
-                Err(e) => Some(DeleteKeyspaceError {
-                    keyspace: ks.clone(),
-                    reason: format!("{:?}", e),
-                }),
-            })
-            .flatten()
-            .collect();
-
-        let reply = DeleteKeyspacesResponse { errors };
-
-        Ok(Response::new(reply))
+        store.delete_keyspace(request.keyspace)?;
+        Ok(Response::new(()))
     }
+
+    async fn get_key(
+        &self,
+        request: Request<GetKeyQuery>,
+    ) -> StdResult<Response<models::Record>, Status> {
+        let request = request.into_inner();
+
+        let mut store = self.get_store_guard()?;
+        let ks = store.get_keyspace(request.keyspace.clone())?;
+
+        let value = ks.get(request.key.as_slice())?;
+        Ok(Response::new(models::Record {
+            key: request.key,
+            value,
+        }))
+    }
+
+    async fn insert_key(
+        &self,
+        request: Request<InsertKeyQuery>,
+    ) -> StdResult<Response<()>, Status> {
+        let request = request.into_inner();
+        let record = request.record.unwrap(); // Remove this prost is building Option<T> instead of T
+
+        let mut store = self.get_store_guard()?;
+        let ks = store.get_keyspace(request.keyspace)?;
+
+        ks.insert(record.key.as_slice(), record.value.as_slice())?;
+        Ok(Response::new(()))
+    }
+
+    async fn delete_key(
+        &self,
+        request: Request<DeleteKeyQuery>,
+    ) -> StdResult<Response<()>, Status> {
+        let request = request.into_inner();
+        let mut store = self.get_store_guard()?;
+        let ks = store.get_keyspace(request.keyspace.clone())?;
+
+        ks.delete(request.key.as_slice())?;
+        Ok(Response::new(()))
+    }
+
+    type GetKeysStream =
+        Pin<Box<dyn Stream<Item = StdResult<models::Record, Status>> + Send + Sync + 'static>>;
 
     async fn get_keys(
         &self,
-        request: Request<GetQuery>,
-    ) -> StdResult<Response<GetResponse>, Status> {
-        let mut store = self.get_store_guard()?;
-        let request = request.into_inner();
-        let ks = store.get_keyspace(request.keyspace.clone())?;
-
-        let records = request
-            .keys
-            .par_iter()
-            .map(|k| {
-                match ks.get(k.as_slice()) {
-                    Ok(value) => Some(models::Record {
-                        key: k.clone(),
-                        value,
-                    }),
-                    // TODO: Find a way to efficiently return errors
-                    Err(_e) => None,
-                }
-            })
-            .flatten()
-            .collect();
-
-        let reply = GetResponse {
-            keyspace: request.keyspace,
-            records,
-            errors: vec![],
-        };
-
-        Ok(Response::new(reply))
-    }
-
-    async fn insert_keys(
-        &self,
-        request: Request<InsertQuery>,
-    ) -> StdResult<Response<InsertResponse>, Status> {
+        request: Request<GetKeysQuery>,
+    ) -> StdResult<Response<Self::GetKeysStream>, Status> {
         let request = request.into_inner();
         let mut store = self.get_store_guard()?;
-        let ks = store.get_keyspace(request.keyspace.clone())?;
+        let ks = store.get_keyspace(request.keyspace.clone())?.clone();
 
-        let errors = request
-            .records
-            .iter()
-            .map(|r| match ks.insert(r.key.as_slice(), r.value.as_slice()) {
-                Ok(_) => None,
-                Err(e) => Some(InsertError {
-                    key: r.key.clone(),
-                    reason: format!("{:?}", e),
-                }),
-            })
-            .flatten()
-            .collect();
+        let (tx, rx) = mpsc::channel(4);
 
-        let reply = InsertResponse {
-            keyspace: request.keyspace,
-            errors,
-        };
+        tokio::spawn(async move {
+            let ks = ks.clone();
 
-        Ok(Response::new(reply))
-    }
+            for key in request.keys {
+                match ks.clone().get(key.as_slice()) {
+                    Ok(value) => tx
+                        .send(Ok(models::Record {
+                            key: key.clone(),
+                            value,
+                        }))
+                        .await
+                        .unwrap(),
+                    Err(e) => tx.send(Err(Status::from(e))).await.unwrap(),
+                };
+            }
+        });
 
-    async fn delete_keys(
-        &self,
-        request: Request<DeleteQuery>,
-    ) -> StdResult<Response<DeleteResponse>, Status> {
-        let request = request.into_inner();
-        let mut store = self.get_store_guard()?;
-        let ks = store.get_keyspace(request.keyspace.clone())?;
-
-        let errors = request
-            .keys
-            .iter()
-            .map(|k| match ks.delete(k.as_slice()) {
-                Ok(_) => None,
-                Err(e) => Some(DeleteError {
-                    key: k.clone(),
-                    reason: format!("{:?}", e),
-                }),
-            })
-            .flatten()
-            .collect();
-
-        let reply = DeleteResponse {
-            keyspace: request.keyspace,
-            errors,
-        };
-
-        Ok(Response::new(reply))
+        Ok(Response::new(Box::pin(
+            tokio_stream::wrappers::ReceiverStream::new(rx),
+        )))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::StreamExt;
+    use tonic::Code;
     use uuid::Uuid;
 
     use dumpstors_lib::store::store_server::Store as StoreServer;
@@ -217,237 +162,277 @@ mod tests {
 
     #[tokio::test]
     async fn store_server_ping_test() {
-        let srv: DumpstorsStoreServer = create_random_store_server().await;
+        let srv = create_random_store_server().await;
         assert_eq!(srv.ping(Request::new(())).await.unwrap().into_inner(), ());
     }
 
     #[tokio::test]
     async fn store_server_keyspace_test() {
-        let srv: DumpstorsStoreServer = create_random_store_server().await;
+        let srv = create_random_store_server().await;
 
-        let keyspaces = vec![
-            Keyspace {
-                name: String::from("ks1").clone(),
-            },
-            Keyspace {
-                name: String::from("ks2").clone(),
-            },
-        ];
+        let ks1 = models::Keyspace {
+            name: String::from("ks1").clone(),
+        };
+        let ks2 = models::Keyspace {
+            name: String::from("ks2").clone(),
+        };
 
-        let keyspaces_name: Vec<String> = keyspaces.clone().into_iter().map(|k| k.name).collect();
+        srv.create_keyspace(Request::new(ks1.clone()))
+            .await
+            .unwrap();
+        srv.create_keyspace(Request::new(ks2.clone()))
+            .await
+            .unwrap();
 
         let resp = srv
-            .create_keyspaces(Request::new(CreateKeyspacesQuery {
-                keyspaces: keyspaces.clone(),
+            .get_keyspace(Request::new(GetKeyspaceQuery {
+                keyspace: ks1.name.clone(),
             }))
             .await
             .unwrap()
             .into_inner();
 
-        assert_eq!(resp, CreateKeyspacesResponse { errors: vec![] });
+        assert_eq!(resp, ks1.clone());
 
         let resp = srv
-            .get_keyspaces(Request::new(GetKeyspacesQuery {
-                keyspaces: keyspaces_name.clone(),
+            .get_keyspace(Request::new(GetKeyspaceQuery {
+                keyspace: ks2.name.clone(),
             }))
             .await
             .unwrap()
             .into_inner();
 
-        assert_eq!(
-            resp,
-            GetKeyspacesResponse {
-                keyspaces: keyspaces.clone(),
-                errors: vec![]
-            }
-        );
+        assert_eq!(resp, ks2.clone());
+
+        srv.delete_keyspace(Request::new(DeleteKeyspaceQuery {
+            keyspace: ks1.name.clone(),
+        }))
+        .await
+        .unwrap();
 
         let resp = srv
-            .delete_keyspaces(Request::new(DeleteKeyspacesQuery {
-                keyspaces: vec![String::from("ks1")],
+            .get_keyspace(Request::new(GetKeyspaceQuery {
+                keyspace: ks1.name.clone(),
             }))
-            .await
-            .unwrap()
-            .into_inner();
+            .await;
 
-        assert_eq!(resp, DeleteKeyspacesResponse { errors: vec![] });
-
-        let resp = srv
-            .get_keyspaces(Request::new(GetKeyspacesQuery {
-                keyspaces: keyspaces_name.clone(),
-            }))
-            .await
-            .unwrap()
-            .into_inner();
-
-        assert_eq!(
-            resp,
-            GetKeyspacesResponse {
-                keyspaces: keyspaces[1..2].to_vec(),
-                errors: vec![]
-            }
-        );
+        match resp {
+            Err(e) => assert_eq!(e.code(), Code::NotFound),
+            _ => assert!(false, "Keyspace should not exist after being deleted"),
+        };
     }
 
     #[tokio::test]
     async fn store_server_create_existing_keyspace() {
-        let srv: DumpstorsStoreServer = create_random_store_server().await;
+        let srv = create_random_store_server().await;
+        let ks = models::Keyspace {
+            name: String::from("ks").clone(),
+        };
 
-        let keyspaces = vec![
-            Keyspace {
-                name: String::from("ks1").clone(),
-            },
-            Keyspace {
-                name: String::from("ks2").clone(),
-            },
-        ];
+        srv.create_keyspace(Request::new(ks.clone())).await.unwrap();
+        let resp = srv.create_keyspace(Request::new(ks.clone())).await;
 
-        let keyspaces_name: Vec<String> = keyspaces.clone().into_iter().map(|k| k.name).collect();
-
-        let resp = srv
-            .create_keyspaces(Request::new(CreateKeyspacesQuery {
-                keyspaces: keyspaces[0..1].to_vec(),
-            }))
-            .await
-            .unwrap()
-            .into_inner();
-
-        assert_eq!(resp, CreateKeyspacesResponse { errors: vec![] });
-
-        let resp = srv
-            .create_keyspaces(Request::new(CreateKeyspacesQuery {
-                keyspaces: keyspaces.clone(),
-            }))
-            .await
-            .unwrap()
-            .into_inner();
-
-        assert_eq!(
-            resp,
-            CreateKeyspacesResponse {
-                errors: vec![CreateKeyspaceError {
-                    keyspace: Some(Keyspace {
-                        name: String::from("ks1")
-                    }),
-                    reason: String::from("KeyspaceAlreadyExists")
-                }]
-            }
-        );
-
-        let resp = srv
-            .get_keyspaces(Request::new(GetKeyspacesQuery {
-                keyspaces: keyspaces_name.clone(),
-            }))
-            .await
-            .unwrap()
-            .into_inner();
-
-        assert_eq!(
-            resp,
-            GetKeyspacesResponse {
-                keyspaces: keyspaces.clone(),
-                errors: vec![]
-            }
-        );
+        match resp {
+            Err(e) => assert_eq!(e.code(), Code::AlreadyExists),
+            _ => assert!(false, "Creating an existing keyspace must return an error"),
+        };
     }
 
     #[tokio::test]
-    async fn store_server_key_operations_test() {
-        let srv: DumpstorsStoreServer = create_random_store_server().await;
-        let ks1 = Keyspace {
-            name: String::from("ks1").clone(),
+    async fn get_inexistant_key_test() {
+        let srv = create_random_store_server().await;
+        let ks = models::Keyspace {
+            name: String::from("ks").clone(),
+        };
+        srv.create_keyspace(Request::new(ks.clone())).await.unwrap();
+        let resp = srv
+            .get_key(Request::new(GetKeyQuery {
+                keyspace: ks.name.clone(),
+                key: b"foo".to_vec(),
+            }))
+            .await;
+
+        match resp {
+            Err(e) => assert_eq!(e.code(), Code::NotFound),
+            _ => assert!(false, "Getting an inextant key should return an NotFound"),
+        };
+    }
+
+    #[tokio::test]
+    async fn delete_inexistant_key_test() {
+        let srv = create_random_store_server().await;
+        let ks = models::Keyspace {
+            name: String::from("ks").clone(),
+        };
+        srv.create_keyspace(Request::new(ks.clone())).await.unwrap();
+        let resp = srv
+            .delete_key(Request::new(DeleteKeyQuery {
+                keyspace: ks.name.clone(),
+                key: b"foo".to_vec(),
+            }))
+            .await;
+
+        match resp {
+            Err(e) => assert_eq!(e.code(), Code::NotFound),
+            _ => assert!(false, "Deleting an inextant key should return an NotFound"),
+        };
+    }
+
+    #[tokio::test]
+    async fn getdelins_inexistant_keyspace_test() {
+        let srv = create_random_store_server().await;
+
+        let resp = srv
+            .delete_key(Request::new(DeleteKeyQuery {
+                keyspace: String::from("NotFound"),
+                key: b"foo".to_vec(),
+            }))
+            .await;
+
+        match resp {
+            Err(e) => assert_eq!(e.code(), Code::NotFound),
+            _ => assert!(
+                false,
+                "Deleting a key on a unknown keyspace must return an NotFound"
+            ),
         };
 
-        srv.create_keyspaces(Request::new(CreateKeyspacesQuery {
-            keyspaces: vec![ks1.clone()],
-        }))
-        .await
-        .unwrap()
-        .into_inner();
+        let resp = srv
+            .insert_key(Request::new(InsertKeyQuery {
+                keyspace: String::from("NotFound"),
+                record: Some(models::Record {
+                    key: b"foo".to_vec(),
+                    value: b"foo".to_vec(),
+                }),
+            }))
+            .await;
 
-        let records = vec![
-            Record {
+        match resp {
+            Err(e) => assert_eq!(e.code(), Code::NotFound),
+            _ => assert!(
+                false,
+                "Inserting a key on a unknown keyspace must return an NotFound"
+            ),
+        };
+
+        let resp = srv
+            .get_key(Request::new(GetKeyQuery {
+                keyspace: String::from("NotFound"),
+                key: b"foo".to_vec(),
+            }))
+            .await;
+
+        match resp {
+            Err(e) => assert_eq!(e.code(), Code::NotFound),
+            _ => assert!(
+                false,
+                "Getting a key on a unknown keyspace must return an NotFound"
+            ),
+        };
+    }
+
+    #[tokio::test]
+    async fn insert_get_keys_test() {
+        let srv = create_random_store_server().await;
+        let ks = models::Keyspace {
+            name: String::from("ks").clone(),
+        };
+        srv.create_keyspace(Request::new(ks.clone())).await.unwrap();
+
+        let records: Vec<models::Record> = vec![
+            models::Record {
                 key: b"foo".to_vec(),
                 value: b"bar".to_vec(),
             },
-            Record {
+            models::Record {
                 key: b"doo".to_vec(),
-                value: b"doo doo".to_vec(),
+                value: b"dar".to_vec(),
             },
-            Record {
+            models::Record {
                 key: b"daa".to_vec(),
-                value: b"daa daa".to_vec(),
+                value: b"daa".to_vec(),
+            },
+            models::Record {
+                key: b"duu".to_vec(),
+                value: b"duu".to_vec(),
             },
         ];
 
-        let resp = srv
-            .insert_keys(Request::new(InsertQuery {
-                keyspace: ks1.name.clone(),
-                records: records.clone(),
+        let mut inserted_records = vec![];
+
+        for r in records.clone() {
+            srv.insert_key(Request::new(InsertKeyQuery {
+                keyspace: ks.name.clone(),
+                record: Some(r.clone()), // Fix this Some...
+            }))
+            .await
+            .unwrap();
+
+            let resp = srv
+                .get_key(Request::new(GetKeyQuery {
+                    keyspace: ks.name.clone(),
+                    key: r.key.clone(),
+                }))
+                .await
+                .unwrap()
+                .into_inner();
+
+            inserted_records.push(resp);
+        }
+
+        assert_eq!(records, inserted_records)
+    }
+
+    #[tokio::test]
+    async fn get_keys_stream_test() {
+        let srv = create_random_store_server().await;
+        let ks = models::Keyspace {
+            name: String::from("ks").clone(),
+        };
+        srv.create_keyspace(Request::new(ks.clone())).await.unwrap();
+
+        let records: Vec<models::Record> = vec![
+            models::Record {
+                key: b"foo".to_vec(),
+                value: b"bar".to_vec(),
+            },
+            models::Record {
+                key: b"doo".to_vec(),
+                value: b"dar".to_vec(),
+            },
+            models::Record {
+                key: b"daa".to_vec(),
+                value: b"daa".to_vec(),
+            },
+            models::Record {
+                key: b"duu".to_vec(),
+                value: b"duu".to_vec(),
+            },
+        ];
+
+        for r in records.clone() {
+            srv.insert_key(Request::new(InsertKeyQuery {
+                keyspace: ks.name.clone(),
+                record: Some(r.clone()), // Fix this Some...
+            }))
+            .await
+            .unwrap();
+        }
+
+        let mut resp = srv
+            .get_keys(Request::new(GetKeysQuery {
+                keyspace: ks.name.clone(),
+                keys: records.clone().into_iter().map(|r| r.key).collect(),
             }))
             .await
             .unwrap()
             .into_inner();
 
-        assert_eq!(
-            resp,
-            InsertResponse {
-                keyspace: ks1.name.clone(),
-                errors: vec![]
-            }
-        );
+        let mut inserted_records = vec![];
+        while let Some(r) = resp.next().await {
+            inserted_records.push(r.unwrap());
+        }
 
-        let resp = srv
-            .get_keys(Request::new(GetQuery {
-                keyspace: ks1.name.clone(),
-                keys: vec![b"foo".to_vec(), b"doo".to_vec(), b"daa".to_vec()],
-            }))
-            .await
-            .unwrap()
-            .into_inner();
-
-        assert_eq!(
-            resp,
-            GetResponse {
-                keyspace: ks1.name.clone(),
-                records: records.clone(),
-                errors: vec![]
-            }
-        );
-
-        let resp = srv
-            .delete_keys(Request::new(DeleteQuery {
-                keyspace: ks1.name.clone(),
-                keys: vec![b"foo".to_vec()],
-            }))
-            .await
-            .unwrap()
-            .into_inner();
-
-        assert_eq!(
-            resp,
-            DeleteResponse {
-                keyspace: ks1.name.clone(),
-                errors: vec![]
-            }
-        );
-
-        let resp = srv
-            .get_keys(Request::new(GetQuery {
-                keyspace: ks1.name.clone(),
-                keys: vec![b"doo".to_vec(), b"daa".to_vec()],
-            }))
-            .await
-            .unwrap()
-            .into_inner();
-
-        assert_eq!(
-            resp,
-            GetResponse {
-                keyspace: ks1.name.clone(),
-                records: records[1..3].to_vec(),
-                errors: vec![]
-            }
-        );
+        assert_eq!(records, inserted_records)
     }
 }

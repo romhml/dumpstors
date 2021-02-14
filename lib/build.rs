@@ -1,7 +1,8 @@
 use std::error::Error;
 use std::process::exit;
 
-fn run() -> Result<(), Box<dyn Error>> {
+#[cfg(not(feature = "structopt"))]
+fn compile_prototypes() -> Result<(), Box<dyn Error>> {
     tonic_build::configure()
         // .format(false) // disable code formatting since docs.rs will otherwise break
         .compile(&["proto/models.proto", "proto/store.proto"], &["."])?;
@@ -9,7 +10,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 }
 
 fn main() {
-    if let Err(err) = run() {
+    if let Err(err) = compile_prototypes() {
         eprintln!("{}", err);
         exit(1);
     }

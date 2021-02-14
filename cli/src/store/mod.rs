@@ -1,22 +1,15 @@
 pub mod keyspace;
 
+use tonic::IntoRequest;
+
+use dumpstors_lib::models::*;
 use dumpstors_lib::store::*;
+
 use structopt::StructOpt;
-use tonic::Response;
-
-#[derive(Debug)]
-pub enum QueryResult {
-    Get(Response<GetResponse>),
-    Insert(Response<InsertResponse>),
-    Delete(Response<DeleteResponse>),
-
-    GetKeyspace(Response<GetKeyspacesResponse>),
-    CreateKeyspace(Response<CreateKeyspacesResponse>),
-    DeleteKeyspace(Response<DeleteKeyspacesResponse>),
-}
+use tonic::Request;
 
 #[derive(Debug, StructOpt)]
-pub struct InsertOpt {
+pub struct InsertKeyOpt {
     #[structopt(long, short)]
     pub keyspace: String,
 
@@ -24,24 +17,46 @@ pub struct InsertOpt {
     pub value: String,
 }
 
+impl IntoRequest<InsertKeyQuery> for InsertKeyOpt {
+    fn into_request(self) -> Request<InsertKeyQuery> {
+        Request::new(InsertKeyQuery {
+            keyspace: self.keyspace,
+            record: Some(Record {
+                key: self.key.as_bytes().to_vec(),
+                value: self.value.as_bytes().to_vec(),
+            }),
+        })
+    }
+}
+
 #[derive(Debug, StructOpt)]
-pub struct GetOpt {
+pub struct GetKeyOpt {
     #[structopt(long, short)]
     pub keyspace: String,
     pub key: String,
 }
 
+impl IntoRequest<GetKeyQuery> for GetKeyOpt {
+    fn into_request(self) -> Request<GetKeyQuery> {
+        Request::new(GetKeyQuery {
+            keyspace: self.keyspace,
+            key: self.key.as_bytes().to_vec(),
+        })
+    }
+}
+
 #[derive(Debug, StructOpt)]
-pub struct DeleteOpt {
+pub struct DeleteKeyOpt {
     #[structopt(long, short)]
     pub keyspace: String,
     pub key: String,
 }
 
-#[derive(Debug, StructOpt)]
-pub enum Command {
-    Insert(InsertOpt),
-    Get(GetOpt),
-    Delete(DeleteOpt),
-    Keyspaces(keyspace::KeyspaceCommand),
+impl IntoRequest<DeleteKeyQuery> for DeleteKeyOpt {
+    fn into_request(self) -> Request<DeleteKeyQuery> {
+        Request::new(DeleteKeyQuery {
+            keyspace: self.keyspace,
+            key: self.key.as_bytes().to_vec(),
+        })
+    }
 }

@@ -1,5 +1,8 @@
 pub mod store;
 
+#[cfg(feature = "structopt")]
+extern crate structopt;
+
 pub mod models {
     use super::store;
 

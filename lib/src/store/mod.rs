@@ -1,12 +1,12 @@
 tonic::include_proto!("dumpstors.store");
 pub mod keyspace;
 
-use tonic::{Status, Code};
 use sled::Error as SledError;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Error as IoError;
 use std::result::Result as StdResult;
+use tonic::{Code, Status};
 
 use super::models;
 use keyspace::Keyspace;
@@ -39,9 +39,11 @@ impl From<Error> for Status {
     fn from(err: Error) -> Self {
         match err {
             Error::KeyspaceNotFound => Self::new(Code::NotFound, "Keyspace not found"),
-            Error::KeyspaceAlreadyExists => Self::new(Code::AlreadyExists, "Keyspace already exists"),
+            Error::KeyspaceAlreadyExists => {
+                Self::new(Code::AlreadyExists, "Keyspace already exists")
+            }
             Error::KeyNotFound => Self::new(Code::NotFound, "Key not found"),
-            _ => Self::new(Code::Internal, "Internal Error")
+            _ => Self::new(Code::Internal, "Internal Error"),
         }
     }
 }
