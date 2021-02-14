@@ -1,4 +1,4 @@
-name: Test
+name: Tests
 
 on:
   push:
@@ -71,7 +71,7 @@ jobs:
         RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests'
         RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests'
 
-    - id: coverage  
+    - id: Coverage
       uses: actions-rs/grcov@v0.1
 
     - name: Coveralls upload
