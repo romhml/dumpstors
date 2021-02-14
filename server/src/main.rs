@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("Loading store at '{}'", conf.store.path);
     let store = Arc::new(Mutex::new(Store::new(conf.store.path)));
-    let store_srv = store::DumpstorsStoreServer::new(store.clone());
+    let store_srv = store::DumpstorsStoreServer::new(store);
 
     info!("Starting server on '{}'", sockaddr);
 
