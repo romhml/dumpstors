@@ -23,6 +23,13 @@ pub struct Query {
     pub opts: QueryOpt,
 }
 
+fn format_bytes(bytes: &[u8]) -> String {
+  match str::from_utf8(bytes) {
+    Ok(s) => String::from(s),
+    Err(_) => format!("{:?}", bytes)
+  }
+}
+
 #[derive(Debug)]
 pub enum QueryResult {
     Record(Response<Record>),
@@ -31,11 +38,17 @@ pub enum QueryResult {
 }
 
 impl fmt::Display for QueryResult {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            _ => write!(f, "{:?}", self),
-        }
-    }
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      match self {
+          Self::Record(resp) => {
+            let record = resp.get_ref();
+
+              write!(f, "{}={}", format_bytes(record.key.as_slice()), format_bytes(record.value.as_slice()))
+          }
+          Self::Keyspace(resp) =>  write!(f, "{:?}", resp.get_ref()),
+          Self::Empty(_) =>  write!(f, ""),
+      }
+  }
 }
 
 impl Into<QueryResult> for Response<Record> {
