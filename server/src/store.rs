@@ -155,6 +155,8 @@ mod tests {
     use dumpstors_lib::store::store_server::Store as StoreServer;
     use std::sync::{Arc, Mutex};
 
+    use tonic::IntoRequest;
+
     async fn create_random_store_server() -> DumpstorsStoreServer {
         let store = Arc::new(Mutex::new(Store::new(format!(".data/{}", Uuid::new_v4()))));
         super::DumpstorsStoreServer::new(store)
@@ -163,7 +165,7 @@ mod tests {
     #[tokio::test]
     async fn store_server_ping_test() {
         let srv = create_random_store_server().await;
-        assert_eq!(srv.ping(Request::new(())).await.unwrap().into_inner(), ());
+        assert_eq!(srv.ping(().into_request()).await.unwrap().into_inner(), ());
     }
 
     #[tokio::test]
@@ -177,17 +179,20 @@ mod tests {
             name: String::from("ks2").clone(),
         };
 
-        srv.create_keyspace(Request::new(ks1.clone()))
+        srv.create_keyspace(ks1.clone().into_request())
             .await
             .unwrap();
-        srv.create_keyspace(Request::new(ks2.clone()))
+        srv.create_keyspace(ks2.clone().into_request())
             .await
             .unwrap();
 
         let resp = srv
-            .get_keyspace(Request::new(GetKeyspaceQuery {
-                keyspace: ks1.name.clone(),
-            }))
+            .get_keyspace(
+                GetKeyspaceQuery {
+                    keyspace: ks1.name.clone(),
+                }
+                .into_request(),
+            )
             .await
             .unwrap()
             .into_inner();
@@ -195,25 +200,34 @@ mod tests {
         assert_eq!(resp, ks1.clone());
 
         let resp = srv
-            .get_keyspace(Request::new(GetKeyspaceQuery {
-                keyspace: ks2.name.clone(),
-            }))
+            .get_keyspace(
+                GetKeyspaceQuery {
+                    keyspace: ks2.name.clone(),
+                }
+                .into_request(),
+            )
             .await
             .unwrap()
             .into_inner();
 
         assert_eq!(resp, ks2.clone());
 
-        srv.delete_keyspace(Request::new(DeleteKeyspaceQuery {
-            keyspace: ks1.name.clone(),
-        }))
+        srv.delete_keyspace(
+            DeleteKeyspaceQuery {
+                keyspace: ks1.name.clone(),
+            }
+            .into_request(),
+        )
         .await
         .unwrap();
 
         let resp = srv
-            .get_keyspace(Request::new(GetKeyspaceQuery {
-                keyspace: ks1.name.clone(),
-            }))
+            .get_keyspace(
+                GetKeyspaceQuery {
+                    keyspace: ks1.name.clone(),
+                }
+                .into_request(),
+            )
             .await;
 
         match resp {
@@ -229,8 +243,10 @@ mod tests {
             name: String::from("ks").clone(),
         };
 
-        srv.create_keyspace(Request::new(ks.clone())).await.unwrap();
-        let resp = srv.create_keyspace(Request::new(ks.clone())).await;
+        srv.create_keyspace(ks.clone().into_request())
+            .await
+            .unwrap();
+        let resp = srv.create_keyspace(ks.clone().into_request()).await;
 
         match resp {
             Err(e) => assert_eq!(e.code(), Code::AlreadyExists),
@@ -244,12 +260,17 @@ mod tests {
         let ks = models::Keyspace {
             name: String::from("ks").clone(),
         };
-        srv.create_keyspace(Request::new(ks.clone())).await.unwrap();
+        srv.create_keyspace(ks.clone().into_request())
+            .await
+            .unwrap();
         let resp = srv
-            .get_key(Request::new(GetKeyQuery {
-                keyspace: ks.name.clone(),
-                key: b"foo".to_vec(),
-            }))
+            .get_key(
+                GetKeyQuery {
+                    keyspace: ks.name.clone(),
+                    key: b"foo".to_vec(),
+                }
+                .into_request(),
+            )
             .await;
 
         match resp {
@@ -264,12 +285,17 @@ mod tests {
         let ks = models::Keyspace {
             name: String::from("ks").clone(),
         };
-        srv.create_keyspace(Request::new(ks.clone())).await.unwrap();
+        srv.create_keyspace(ks.clone().into_request())
+            .await
+            .unwrap();
         let resp = srv
-            .delete_key(Request::new(DeleteKeyQuery {
-                keyspace: ks.name.clone(),
-                key: b"foo".to_vec(),
-            }))
+            .delete_key(
+                DeleteKeyQuery {
+                    keyspace: ks.name.clone(),
+                    key: b"foo".to_vec(),
+                }
+                .into_request(),
+            )
             .await;
 
         match resp {
@@ -283,10 +309,13 @@ mod tests {
         let srv = create_random_store_server().await;
 
         let resp = srv
-            .delete_key(Request::new(DeleteKeyQuery {
-                keyspace: String::from("NotFound"),
-                key: b"foo".to_vec(),
-            }))
+            .delete_key(
+                DeleteKeyQuery {
+                    keyspace: String::from("NotFound"),
+                    key: b"foo".to_vec(),
+                }
+                .into_request(),
+            )
             .await;
 
         match resp {
@@ -298,13 +327,16 @@ mod tests {
         };
 
         let resp = srv
-            .insert_key(Request::new(InsertKeyQuery {
-                keyspace: String::from("NotFound"),
-                record: Some(models::Record {
-                    key: b"foo".to_vec(),
-                    value: b"foo".to_vec(),
-                }),
-            }))
+            .insert_key(
+                InsertKeyQuery {
+                    keyspace: String::from("NotFound"),
+                    record: Some(models::Record {
+                        key: b"foo".to_vec(),
+                        value: b"foo".to_vec(),
+                    }),
+                }
+                .into_request(),
+            )
             .await;
 
         match resp {
@@ -316,10 +348,13 @@ mod tests {
         };
 
         let resp = srv
-            .get_key(Request::new(GetKeyQuery {
-                keyspace: String::from("NotFound"),
-                key: b"foo".to_vec(),
-            }))
+            .get_key(
+                GetKeyQuery {
+                    keyspace: String::from("NotFound"),
+                    key: b"foo".to_vec(),
+                }
+                .into_request(),
+            )
             .await;
 
         match resp {
@@ -337,7 +372,9 @@ mod tests {
         let ks = models::Keyspace {
             name: String::from("ks").clone(),
         };
-        srv.create_keyspace(Request::new(ks.clone())).await.unwrap();
+        srv.create_keyspace(ks.clone().into_request())
+            .await
+            .unwrap();
 
         let records: Vec<models::Record> = vec![
             models::Record {
@@ -361,18 +398,24 @@ mod tests {
         let mut inserted_records = vec![];
 
         for r in records.clone() {
-            srv.insert_key(Request::new(InsertKeyQuery {
-                keyspace: ks.name.clone(),
-                record: Some(r.clone()), // Fix this Some...
-            }))
+            srv.insert_key(
+                InsertKeyQuery {
+                    keyspace: ks.name.clone(),
+                    record: Some(r.clone()), // Fix this Some...
+                }
+                .into_request(),
+            )
             .await
             .unwrap();
 
             let resp = srv
-                .get_key(Request::new(GetKeyQuery {
-                    keyspace: ks.name.clone(),
-                    key: r.key.clone(),
-                }))
+                .get_key(
+                    GetKeyQuery {
+                        keyspace: ks.name.clone(),
+                        key: r.key.clone(),
+                    }
+                    .into_request(),
+                )
                 .await
                 .unwrap()
                 .into_inner();
@@ -389,7 +432,9 @@ mod tests {
         let ks = models::Keyspace {
             name: String::from("ks").clone(),
         };
-        srv.create_keyspace(Request::new(ks.clone())).await.unwrap();
+        srv.create_keyspace(ks.clone().into_request())
+            .await
+            .unwrap();
 
         let records: Vec<models::Record> = vec![
             models::Record {
@@ -411,19 +456,25 @@ mod tests {
         ];
 
         for r in records.clone() {
-            srv.insert_key(Request::new(InsertKeyQuery {
-                keyspace: ks.name.clone(),
-                record: Some(r.clone()), // Fix this Some...
-            }))
+            srv.insert_key(
+                InsertKeyQuery {
+                    keyspace: ks.name.clone(),
+                    record: Some(r.clone()), // Fix this Some...
+                }
+                .into_request(),
+            )
             .await
             .unwrap();
         }
 
         let mut resp = srv
-            .get_keys(Request::new(GetKeysQuery {
-                keyspace: ks.name.clone(),
-                keys: records.clone().into_iter().map(|r| r.key).collect(),
-            }))
+            .get_keys(
+                GetKeysQuery {
+                    keyspace: ks.name.clone(),
+                    keys: records.clone().into_iter().map(|r| r.key).collect(),
+                }
+                .into_request(),
+            )
             .await
             .unwrap()
             .into_inner();

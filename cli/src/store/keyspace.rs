@@ -18,7 +18,7 @@ pub struct CreateKeyspaceOpt {
 
 impl IntoRequest<Keyspace> for CreateKeyspaceOpt {
     fn into_request(self) -> Request<Keyspace> {
-        Request::new(Keyspace { name: self.name })
+        Keyspace { name: self.name }.into_request()
     }
 }
 
@@ -29,9 +29,10 @@ pub struct GetKeyspaceOpt {
 
 impl IntoRequest<GetKeyspaceQuery> for GetKeyspaceOpt {
     fn into_request(self) -> Request<GetKeyspaceQuery> {
-        Request::new(GetKeyspaceQuery {
+        GetKeyspaceQuery {
             keyspace: self.keyspace,
-        })
+        }
+        .into_request()
     }
 }
 
@@ -42,8 +43,9 @@ pub struct DeleteKeyspaceOpt {
 
 impl IntoRequest<DeleteKeyspaceQuery> for DeleteKeyspaceOpt {
     fn into_request(self) -> Request<DeleteKeyspaceQuery> {
-        Request::new(DeleteKeyspaceQuery {
+        DeleteKeyspaceQuery {
             keyspace: self.keyspace,
-        })
+        }
+        .into_request()
     }
 }
