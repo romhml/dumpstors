@@ -9,15 +9,20 @@ use tonic::transport::Server;
 use dumpstors_lib::store::store_server::StoreServer;
 use dumpstors_lib::store::Store;
 
-mod settings;
+pub mod settings;
 mod store;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
+// async fn start_server() -> SocketAddr {
+//     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+//     let addr = listener.local_addr().unwrap();
 
-    let conf = settings::Settings::new().unwrap();
-    let sockaddr = format!("{}:{}", conf.listen_addr, conf.port);
+//     tokio::spawn(async move { server::run(listener, ).await });
+
+//     addr
+// }
+
+pub async fn start_server(conf: settings::Settings) -> Result<(), Box<dyn std::error::Error>> {
+    let sockaddr = format!("{}:{}", conf.listen_addr, conf.port).parse()?;
 
     info!("Loading store at '{}'", conf.store.path);
     let store = Arc::new(Mutex::new(Store::new(conf.store.path)));
@@ -27,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Server::builder()
         .add_service(StoreServer::new(store_srv))
-        .serve(sockaddr.parse()?)
+        .serve(sockaddr)
         .await?;
 
     Ok(())
