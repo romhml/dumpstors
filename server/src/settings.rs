@@ -8,7 +8,7 @@ pub struct Store {
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     pub listen_addr: String,
-    pub port: u32,
+    pub port: u16,
     pub store: Store,
 }
 
