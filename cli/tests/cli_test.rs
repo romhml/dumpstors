@@ -1,8 +1,4 @@
 mod common;
-
-use std::thread::sleep;
-use std::time::Duration;
-
 use dumpstors_cli::{execute, query::*};
 use structopt::StructOpt;
 

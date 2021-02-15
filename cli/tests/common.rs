@@ -1,5 +1,4 @@
 use dumpstors;
-use std::net::{Ipv4Addr, SocketAddrV4, TcpListener};
 
 pub async fn start_ephemeral_server(port: u16) -> Result<(), Box<dyn std::error::Error>> {
     let conf = dumpstors::settings::Settings {
