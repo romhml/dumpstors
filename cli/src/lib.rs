@@ -6,7 +6,7 @@ pub mod store;
 use query::*;
 use store::keyspace::*;
 
-pub async fn execute(q: Query) -> Result<QueryResult, Box<dyn std::error::Error>> {
+pub async fn execute(q: Query) -> Result<QueryResult, tonic::Status> {
     let mut client = StoreClient::connect(q.bootstrap.clone()).await.unwrap();
 
     let resp: QueryResult = match q.opts {

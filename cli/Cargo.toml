@@ -11,6 +11,7 @@ structopt = "0.3.21"
 
 [dev-dependencies]
 tokio-test = "*"
+uuid = { version = "0.8.2", features = ["v4"] }
 
 [dependencies.dumpstors_lib]
 path = "../lib"
