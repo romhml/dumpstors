@@ -62,10 +62,9 @@ async fn test_cli_keys() {
 
     match execute(q).await {
         Err(e) => assert_eq!(e.code(), Code::NotFound),
-        _ => assert!(false, "Key should not exist after being deleted")
+        _ => assert!(false, "Key should not exist after being deleted"),
     }
 }
-
 
 #[tokio::test]
 async fn test_cli_keyspace() {
@@ -81,7 +80,6 @@ async fn test_cli_keyspace() {
     let result: QueryResult = execute(q).await.unwrap();
     assert_eq!(format!("{}", result), "Keyspace { name: \"ks1\" }");
 
-
     let q = Query::from_iter(&["dumpstors_cli", "-b", addr, "keyspaces", "delete", "ks1"]);
     let result: QueryResult = execute(q).await.unwrap();
     assert_eq!(format!("{}", result), "");
@@ -89,6 +87,6 @@ async fn test_cli_keyspace() {
     let q = Query::from_iter(&["dumpstors_cli", "-b", addr, "keyspaces", "get", "ks1"]);
     match execute(q).await {
         Err(e) => assert_eq!(e.code(), Code::NotFound),
-        _ => assert!(false, "Keyspace should not exist exist after being deleted")
+        _ => assert!(false, "Keyspace should not exist exist after being deleted"),
     }
 }
