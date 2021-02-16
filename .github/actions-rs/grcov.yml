@@ -5,3 +5,5 @@ filter: covered
 ignore:
   - "/*"
   - "../*"
+  # Ignore proto generated files
+  - "*/target/*"
