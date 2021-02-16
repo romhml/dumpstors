@@ -6,4 +6,4 @@ ignore:
   - "/*"
   - "../*"
   # Ignore proto generated files
-  - "*/target/*"
+  - "target/*"
