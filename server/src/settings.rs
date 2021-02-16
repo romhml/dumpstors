@@ -8,7 +8,7 @@ pub struct Store {
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     pub listen_addr: String,
-    pub port: u32,
+    pub port: u16,
     pub store: Store,
 }
 
@@ -18,7 +18,7 @@ impl Settings {
 
         s.set("listen_addr", "127.0.0.1")?;
         s.set("port", "4242")?;
-        s.set("store.path", "/.data")?;
+        s.set("store.path", "./.data")?;
 
         s.try_into()
     }

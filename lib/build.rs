@@ -1,18 +1,20 @@
 use std::error::Error;
 use std::process::exit;
 
-fn run() -> Result<(), Box<dyn Error>> {
+#[cfg(not(feature = "structopt"))]
+fn compile_prototypes() -> Result<(), Box<dyn Error>> {
     tonic_build::configure()
         // .format(false) // disable code formatting since docs.rs will otherwise break
-        .compile(&["proto/dumpstors.proto"], &["."])?;
+        .compile(&["proto/models.proto", "proto/store.proto"], &["."])?;
     Ok(())
 }
 
 fn main() {
-    if let Err(err) = run() {
+    if let Err(err) = compile_prototypes() {
         eprintln!("{}", err);
         exit(1);
     }
 
-    println!("cargo:rerun-if-changed=dumpstors.proto");
+    println!("cargo:rerun-if-changed=proto/store.proto");
+    println!("cargo:rerun-if-changed=proto/models.proto");
 }

@@ -1,5 +1,5 @@
 [package]
-name = "dumpstors_client"
+name = "dumpstors_cli"
 version = "0.1.0"
 authors = ["Romain Hamel <rom.hml@gmail.com>"]
 edition = "2018"
@@ -9,5 +9,16 @@ tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
 tonic = "0.4.0"
 structopt = "0.3.21"
 
+[[bin]]
+name = "dumpcli"
+path = "src/bin/cli.rs"
+
+[dev-dependencies]
+tokio-test = "*"
+uuid = { version = "0.8.2", features = ["v4"] }
+
 [dependencies.dumpstors_lib]
 path = "../lib"
+
+[dev-dependencies.dumpstors]
+path = "../server"
