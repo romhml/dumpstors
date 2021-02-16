@@ -69,26 +69,26 @@ impl fmt::Display for QueryResult {
     }
 }
 
-impl Into<QueryResult> for Response<Record> {
-    fn into(self) -> QueryResult {
-        QueryResult::Record(self)
+impl From<Response<Record>> for QueryResult {
+    fn from(resp: Response<Record>) -> QueryResult {
+        QueryResult::Record(resp)
     }
 }
 
-impl Into<QueryResult> for Response<Keyspace> {
-    fn into(self) -> QueryResult {
-        QueryResult::Keyspace(self)
+impl From<Response<Keyspace>> for QueryResult {
+    fn from(resp: Response<Keyspace>) -> QueryResult {
+        QueryResult::Keyspace(resp)
     }
 }
 
-impl Into<QueryResult> for Response<store_lib::ListKeyspacesResponse> {
-    fn into(self) -> QueryResult {
-        QueryResult::KeyspaceList(self)
+impl From<Response<store_lib::ListKeyspacesResponse>> for QueryResult {
+    fn from(resp: Response<store_lib::ListKeyspacesResponse>) -> Self {
+        QueryResult::KeyspaceList(resp)
     }
 }
 
-impl Into<QueryResult> for Response<()> {
-    fn into(self) -> QueryResult {
-        QueryResult::Empty(self)
+impl From<Response<()>> for QueryResult {
+    fn from(resp: Response<()>) -> QueryResult {
+        QueryResult::Empty(resp)
     }
 }
