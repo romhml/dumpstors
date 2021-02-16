@@ -9,6 +9,8 @@ pub enum KeyspaceCommand {
     Create(CreateKeyspaceOpt),
     Get(GetKeyspaceOpt),
     Delete(DeleteKeyspaceOpt),
+    List,
+    Truncate(TruncateKeyspaceOpt),
 }
 
 #[derive(Debug, StructOpt)]
@@ -44,6 +46,20 @@ pub struct DeleteKeyspaceOpt {
 impl IntoRequest<DeleteKeyspaceQuery> for DeleteKeyspaceOpt {
     fn into_request(self) -> Request<DeleteKeyspaceQuery> {
         DeleteKeyspaceQuery {
+            keyspace: self.keyspace,
+        }
+        .into_request()
+    }
+}
+
+#[derive(Debug, StructOpt)]
+pub struct TruncateKeyspaceOpt {
+    pub keyspace: String,
+}
+
+impl IntoRequest<TruncateKeyspaceQuery> for TruncateKeyspaceOpt {
+    fn into_request(self) -> Request<TruncateKeyspaceQuery> {
+        TruncateKeyspaceQuery {
             keyspace: self.keyspace,
         }
         .into_request()

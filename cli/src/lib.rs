@@ -19,9 +19,13 @@ pub async fn execute(q: Query) -> Result<QueryResult, tonic::Status> {
         QueryOpt::Keyspaces(ks) => match ks {
             KeyspaceCommand::Get(args) => client.get_keyspace(args).await?.into(),
 
+            KeyspaceCommand::List => client.list_keyspaces(()).await?.into(),
+
             KeyspaceCommand::Create(args) => client.create_keyspace(args).await?.into(),
 
             KeyspaceCommand::Delete(args) => client.delete_keyspace(args).await?.into(),
+
+            KeyspaceCommand::Truncate(args) => client.truncate_keyspace(args).await?.into(),
         },
     };
 

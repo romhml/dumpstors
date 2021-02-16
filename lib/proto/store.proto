@@ -12,6 +12,14 @@ message DeleteKeyspaceQuery {
   string keyspace = 1;
 }
 
+message TruncateKeyspaceQuery {
+  string keyspace = 1;
+}
+
+message ListKeyspacesResponse {
+  repeated dumpstors.models.Keyspace keyspaces = 1;
+}
+
 message GetKeyQuery {
   string keyspace = 1;
   bytes key = 2;
@@ -32,15 +40,15 @@ message GetKeysQuery {
   repeated bytes keys = 2;
 }
 
-// message InsertKeysQuery {
-//   string keyspace = 1;
-//   repeated dumpstors.models.Record record = 2;
-// }
+message InsertKeysQuery {
+  string keyspace = 1;
+  repeated dumpstors.models.Record records = 2;
+}
 
-// message DeleteKeysQuery {
-//   string keyspace = 1;
-//   repeated bytes keys = 2;
-// }
+message DeleteKeysQuery {
+  string keyspace = 1;
+  repeated bytes keys = 2;
+}
 
 service Store {
   rpc Ping (google.protobuf.Empty) returns (google.protobuf.Empty);
@@ -48,13 +56,14 @@ service Store {
   rpc GetKeyspace (GetKeyspaceQuery) returns (dumpstors.models.Keyspace);
   rpc CreateKeyspace (dumpstors.models.Keyspace) returns (google.protobuf.Empty);
   rpc DeleteKeyspace (DeleteKeyspaceQuery) returns (google.protobuf.Empty);
+  rpc TruncateKeyspace (TruncateKeyspaceQuery) returns (google.protobuf.Empty);
+  rpc ListKeyspaces (google.protobuf.Empty) returns (ListKeyspacesResponse);
 
   rpc GetKey (GetKeyQuery) returns (dumpstors.models.Record);
   rpc InsertKey (InsertKeyQuery) returns (google.protobuf.Empty);
   rpc DeleteKey (DeleteKeyQuery) returns (google.protobuf.Empty);
-  // rpc ListRecords (string) returns (stream dumsptors.models.Record);
 
   rpc GetKeys (GetKeysQuery) returns (stream dumpstors.models.Record);
-  // rpc InsertKeys (InsertKeysQuery) returns (stream google.protobuf.Empty);
-  // rpc DeleteKeys (DeleteKeysQuery) returns (stream google.protobuf.Empty);
+  rpc InsertKeys (InsertKeysQuery) returns (google.protobuf.Empty);
+  rpc DeleteKeys (DeleteKeysQuery) returns (google.protobuf.Empty);
 }

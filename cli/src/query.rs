@@ -5,6 +5,7 @@ use tonic::Response;
 
 use super::store::*;
 use dumpstors_lib::models::*;
+use dumpstors_lib::store as store_lib;
 
 #[derive(Debug, StructOpt)]
 pub enum QueryOpt {
@@ -34,6 +35,7 @@ fn format_bytes(bytes: &[u8]) -> String {
 pub enum QueryResult {
     Record(Response<Record>),
     Keyspace(Response<Keyspace>),
+    KeyspaceList(Response<store_lib::ListKeyspacesResponse>),
     Empty(Response<()>),
 }
 
@@ -50,7 +52,18 @@ impl fmt::Display for QueryResult {
                     format_bytes(record.value.as_slice())
                 )
             }
-            Self::Keyspace(resp) => write!(f, "{:?}", resp.get_ref()),
+            Self::KeyspaceList(resp) => write!(
+                f,
+                "{}",
+                resp.get_ref()
+                    .keyspaces
+                    .clone()
+                    .into_iter()
+                    .map(|ks| ks.name)
+                    .collect::<Vec<String>>()
+                    .join("\n")
+            ),
+            Self::Keyspace(resp) => write!(f, "{}", resp.get_ref().name),
             Self::Empty(_) => write!(f, ""),
         }
     }
@@ -65,6 +78,12 @@ impl Into<QueryResult> for Response<Record> {
 impl Into<QueryResult> for Response<Keyspace> {
     fn into(self) -> QueryResult {
         QueryResult::Keyspace(self)
+    }
+}
+
+impl Into<QueryResult> for Response<store_lib::ListKeyspacesResponse> {
+    fn into(self) -> QueryResult {
+        QueryResult::KeyspaceList(self)
     }
 }
 

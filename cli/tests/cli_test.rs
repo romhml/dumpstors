@@ -76,9 +76,17 @@ async fn test_cli_keyspace() {
     let result: QueryResult = execute(q).await.unwrap();
     assert_eq!(format!("{}", result), "");
 
+    let q = Query::from_iter(&["dumpstors_cli", "-b", addr, "keyspaces", "create", "ks2"]);
+    let result: QueryResult = execute(q).await.unwrap();
+    assert_eq!(format!("{}", result), "");
+
+    let q = Query::from_iter(&["dumpstors_cli", "-b", addr, "keyspaces", "list"]);
+    let result: QueryResult = execute(q).await.unwrap();
+    assert_eq!(format!("{}", result), "ks1\nks2");
+
     let q = Query::from_iter(&["dumpstors_cli", "-b", addr, "keyspaces", "get", "ks1"]);
     let result: QueryResult = execute(q).await.unwrap();
-    assert_eq!(format!("{}", result), "Keyspace { name: \"ks1\" }");
+    assert_eq!(format!("{}", result), "ks1");
 
     let q = Query::from_iter(&["dumpstors_cli", "-b", addr, "keyspaces", "delete", "ks1"]);
     let result: QueryResult = execute(q).await.unwrap();
@@ -89,4 +97,12 @@ async fn test_cli_keyspace() {
         Err(e) => assert_eq!(e.code(), Code::NotFound),
         _ => assert!(false, "Keyspace should not exist exist after being deleted"),
     }
+
+    let q = Query::from_iter(&["dumpstors_cli", "-b", addr, "keyspaces", "truncate", "ks2"]);
+    let result: QueryResult = execute(q).await.unwrap();
+    assert_eq!(format!("{}", result), "");
+
+    let q = Query::from_iter(&["dumpstors_cli", "-b", addr, "keyspaces", "get", "ks2"]);
+    let result: QueryResult = execute(q).await.unwrap();
+    assert_eq!(format!("{}", result), "ks2");
 }

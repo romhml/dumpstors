@@ -111,6 +111,25 @@ impl Store {
             None => Err(Error::KeyspaceNotFound),
         }
     }
+
+    pub fn truncate_keyspace(&mut self, ks: String) -> Result<()> {
+        match self.keyspaces.get_mut(&ks) {
+            Some(ks) => {
+                ks.truncate()?;
+                Ok(())
+            }
+            None => Err(Error::KeyspaceNotFound),
+        }
+    }
+
+    pub fn list_keyspaces(&mut self) -> Result<Vec<models::Keyspace>> {
+        Ok(self
+            .keyspaces
+            .values()
+            .cloned()
+            .map(|ks| ks.into())
+            .collect())
+    }
 }
 
 #[cfg(test)]
@@ -198,5 +217,47 @@ mod tests {
             Err(Error::KeyspaceNotFound) => assert!(true),
             _ => assert!(false, "Keyspace should not exist after delete"),
         };
+    }
+
+    #[test]
+    fn truncate_keyspace() {
+        let mut store = create_random_store();
+        let ks1 = models::Keyspace {
+            name: String::from("ks1"),
+        };
+
+        store.create_keyspace(ks1.clone()).unwrap();
+        store.truncate_keyspace(ks1.name.clone()).unwrap();
+
+        let res = store.get_keyspace(ks1.name.clone()).unwrap();
+        assert_eq!(ks1, models::Keyspace::from(res.clone()));
+    }
+
+    #[test]
+    fn list_keyspaces() {
+        let mut store = create_random_store();
+        let keyspaces = vec![
+            models::Keyspace {
+                name: String::from("ks1"),
+            },
+            models::Keyspace {
+                name: String::from("ks2"),
+            },
+            models::Keyspace {
+                name: String::from("ks3"),
+            },
+        ];
+
+        keyspaces
+            .clone()
+            .into_iter()
+            .for_each(|ks| store.create_keyspace(ks).unwrap());
+        assert_eq!(
+            keyspaces.clone().sort_by(|a, b| a.name.cmp(&b.name)),
+            store
+                .list_keyspaces()
+                .unwrap()
+                .sort_by(|a, b| a.name.cmp(&b.name))
+        )
     }
 }

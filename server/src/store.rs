@@ -45,6 +45,16 @@ impl store_server::Store for DumpstorsStoreServer {
         Ok(Response::new(models::Keyspace::from(ks.clone())))
     }
 
+    async fn list_keyspaces(
+        &self,
+        _request: Request<()>,
+    ) -> StdResult<Response<ListKeyspacesResponse>, Status> {
+        let mut store = self.get_store_guard()?;
+        let mut keyspaces = store.list_keyspaces()?;
+        keyspaces.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(Response::new(ListKeyspacesResponse { keyspaces }))
+    }
+
     async fn create_keyspace(
         &self,
         request: Request<models::Keyspace>,
@@ -67,6 +77,17 @@ impl store_server::Store for DumpstorsStoreServer {
         Ok(Response::new(()))
     }
 
+    async fn truncate_keyspace(
+        &self,
+        request: Request<TruncateKeyspaceQuery>,
+    ) -> StdResult<Response<()>, Status> {
+        let mut store = self.get_store_guard()?;
+        let request = request.into_inner();
+
+        store.truncate_keyspace(request.keyspace)?;
+        Ok(Response::new(()))
+    }
+
     async fn get_key(
         &self,
         request: Request<GetKeyQuery>,
@@ -76,7 +97,7 @@ impl store_server::Store for DumpstorsStoreServer {
         let mut store = self.get_store_guard()?;
         let ks = store.get_keyspace(request.keyspace.clone())?;
 
-        let value = ks.get(request.key.as_slice())?;
+        let value = ks.get(request.key.clone())?;
         Ok(Response::new(models::Record {
             key: request.key,
             value,
@@ -93,7 +114,7 @@ impl store_server::Store for DumpstorsStoreServer {
         let mut store = self.get_store_guard()?;
         let ks = store.get_keyspace(request.keyspace)?;
 
-        ks.insert(record.key.as_slice(), record.value.as_slice())?;
+        ks.insert(record)?;
         Ok(Response::new(()))
     }
 
@@ -105,7 +126,7 @@ impl store_server::Store for DumpstorsStoreServer {
         let mut store = self.get_store_guard()?;
         let ks = store.get_keyspace(request.keyspace.clone())?;
 
-        ks.delete(request.key.as_slice())?;
+        ks.delete(request.key)?;
         Ok(Response::new(()))
     }
 
@@ -126,7 +147,7 @@ impl store_server::Store for DumpstorsStoreServer {
             let ks = ks.clone();
 
             for key in request.keys {
-                match ks.clone().get(key.as_slice()) {
+                match ks.clone().get(key.clone()) {
                     Ok(value) => tx
                         .send(Ok(models::Record {
                             key: key.clone(),
@@ -142,6 +163,31 @@ impl store_server::Store for DumpstorsStoreServer {
         Ok(Response::new(Box::pin(
             tokio_stream::wrappers::ReceiverStream::new(rx),
         )))
+    }
+
+    async fn insert_keys(
+        &self,
+        request: Request<InsertKeysQuery>,
+    ) -> StdResult<Response<()>, Status> {
+        let request = request.into_inner();
+
+        let mut store = self.get_store_guard()?;
+        let ks = store.get_keyspace(request.keyspace)?;
+
+        ks.batch_insert(request.records)?;
+        Ok(Response::new(()))
+    }
+
+    async fn delete_keys(
+        &self,
+        request: Request<DeleteKeysQuery>,
+    ) -> StdResult<Response<()>, Status> {
+        let request = request.into_inner();
+        let mut store = self.get_store_guard()?;
+        let ks = store.get_keyspace(request.keyspace.clone())?;
+
+        ks.batch_delete(request.keys)?;
+        Ok(Response::new(()))
     }
 }
 
@@ -234,6 +280,28 @@ mod tests {
             Err(e) => assert_eq!(e.code(), Code::NotFound),
             _ => assert!(false, "Keyspace should not exist after being deleted"),
         };
+
+        srv.truncate_keyspace(
+            TruncateKeyspaceQuery {
+                keyspace: ks2.name.clone(),
+            }
+            .into_request(),
+        )
+        .await
+        .unwrap();
+
+        let resp = srv
+            .get_keyspace(
+                GetKeyspaceQuery {
+                    keyspace: ks2.name.clone(),
+                }
+                .into_request(),
+            )
+            .await
+            .unwrap()
+            .into_inner();
+
+        assert_eq!(resp, ks2.clone());
     }
 
     #[tokio::test]
@@ -367,7 +435,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn insert_get_keys_test() {
+    async fn insert_get_key_test() {
         let srv = create_random_store_server().await;
         let ks = models::Keyspace {
             name: String::from("ks").clone(),
@@ -395,8 +463,6 @@ mod tests {
             },
         ];
 
-        let mut inserted_records = vec![];
-
         for r in records.clone() {
             srv.insert_key(
                 InsertKeyQuery {
@@ -420,10 +486,131 @@ mod tests {
                 .unwrap()
                 .into_inner();
 
-            inserted_records.push(resp);
+            assert_eq!(r, resp)
         }
+    }
 
-        assert_eq!(records, inserted_records)
+    #[tokio::test]
+    async fn insert_keys_test() {
+        let srv = create_random_store_server().await;
+        let ks = models::Keyspace {
+            name: String::from("ks").clone(),
+        };
+        srv.create_keyspace(ks.clone().into_request())
+            .await
+            .unwrap();
+
+        let records: Vec<models::Record> = vec![
+            models::Record {
+                key: b"foo".to_vec(),
+                value: b"bar".to_vec(),
+            },
+            models::Record {
+                key: b"doo".to_vec(),
+                value: b"dar".to_vec(),
+            },
+            models::Record {
+                key: b"daa".to_vec(),
+                value: b"daa".to_vec(),
+            },
+            models::Record {
+                key: b"duu".to_vec(),
+                value: b"duu".to_vec(),
+            },
+        ];
+
+        srv.insert_keys(
+            InsertKeysQuery {
+                keyspace: ks.name.clone(),
+                records: records.clone(),
+            }
+            .into_request(),
+        )
+        .await
+        .unwrap();
+
+        for r in records.clone() {
+            let resp = srv
+                .get_key(
+                    GetKeyQuery {
+                        keyspace: ks.name.clone(),
+                        key: r.key.clone(),
+                    }
+                    .into_request(),
+                )
+                .await
+                .unwrap()
+                .into_inner();
+
+            assert_eq!(r, resp)
+        }
+    }
+
+    #[tokio::test]
+    async fn delete_keys_test() {
+        let srv = create_random_store_server().await;
+        let ks = models::Keyspace {
+            name: String::from("ks").clone(),
+        };
+        srv.create_keyspace(ks.clone().into_request())
+            .await
+            .unwrap();
+
+        let records: Vec<models::Record> = vec![
+            models::Record {
+                key: b"foo".to_vec(),
+                value: b"bar".to_vec(),
+            },
+            models::Record {
+                key: b"doo".to_vec(),
+                value: b"dar".to_vec(),
+            },
+            models::Record {
+                key: b"daa".to_vec(),
+                value: b"daa".to_vec(),
+            },
+            models::Record {
+                key: b"duu".to_vec(),
+                value: b"duu".to_vec(),
+            },
+        ];
+
+        srv.insert_keys(
+            InsertKeysQuery {
+                keyspace: ks.name.clone(),
+                records: records.clone(),
+            }
+            .into_request(),
+        )
+        .await
+        .unwrap();
+
+        srv.delete_keys(
+            DeleteKeysQuery {
+                keyspace: ks.name.clone(),
+                keys: records.clone().into_iter().map(|r| r.key).collect(),
+            }
+            .into_request(),
+        )
+        .await
+        .unwrap();
+
+        for r in records.clone() {
+            let resp = srv
+                .get_key(
+                    GetKeyQuery {
+                        keyspace: ks.name.clone(),
+                        key: r.key.clone(),
+                    }
+                    .into_request(),
+                )
+                .await;
+
+            match resp {
+                Err(e) => assert_eq!(e.code(), Code::NotFound),
+                _ => assert!(false, "Getting an inextant key should return an NotFound"),
+            };
+        }
     }
 
     #[tokio::test]
