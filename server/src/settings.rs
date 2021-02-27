@@ -16,9 +16,9 @@ impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
         let mut s = Config::new();
 
-        s.set("listen_addr", "127.0.0.1")?;
+        s.set("listen_addr", "0.0.0.0")?;
         s.set("port", "4242")?;
-        s.set("store.path", "./.data")?;
+        s.set("store.path", "/var/lib/dumpstors/data")?;
 
         s.try_into()
     }

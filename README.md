@@ -6,12 +6,12 @@ A key-value store implemented in rust, accessible through a gRPC API.
 ### Using docker
 Start the server:
 ```bash
-$ docker run -p 4242 -it romhml/dumpstors:latest
+$ docker run -p 4242:4242 -it romhml/dumpstors:latest
 ```
 
 ## Command Line Interface
 ### Using docker
 ```bash
-$ docker run -it romhml/dumpstors:latest -- /bin/bash
-$ dumpstors help
+$ docker exec -it $(docker ps -f ancestor=romhml/dumpstors -q) /bin/sh
+$ dumpcli help
 ```
