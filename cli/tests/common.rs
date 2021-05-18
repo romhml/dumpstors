@@ -8,6 +8,8 @@ pub async fn start_ephemeral_server(port: u16) -> Result<(), Box<dyn std::error:
         store: dumpstors::settings::Store {
             path: format!("./.data/{}", Uuid::new_v4()),
         },
+
+        seeds: vec![],
     };
 
     tokio::spawn(async move {

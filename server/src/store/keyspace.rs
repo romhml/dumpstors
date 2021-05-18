@@ -1,5 +1,5 @@
-use super::models;
 use super::{Error, Result};
+use dumpstors_lib::models;
 use std::iter::Iterator;
 use std::sync::Arc;
 
@@ -125,7 +125,6 @@ mod tests {
     }
 
     #[test]
-
     fn batch_insert_key() {
         let mut ks = create_random_keyspace();
         let records = vec![
