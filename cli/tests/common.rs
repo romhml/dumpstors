@@ -9,6 +9,7 @@ pub async fn start_ephemeral_server(port: u16) -> Result<(), Box<dyn std::error:
             path: format!("./.data/{}", Uuid::new_v4()),
         },
 
+        internal_port: 2424,
         seeds: vec![],
     };
 

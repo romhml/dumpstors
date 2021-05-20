@@ -1,10 +1,10 @@
-use dumpstors_lib::store::store_client::StoreClient;
-
 pub mod query;
 pub mod store;
 
 use query::*;
 use store::keyspace::*;
+
+use dumpstors_lib::store::store_client::StoreClient;
 
 pub async fn execute(q: Query) -> Result<QueryResult, tonic::Status> {
     let mut client = StoreClient::connect(q.bootstrap.clone()).await.unwrap();

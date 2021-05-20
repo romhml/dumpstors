@@ -5,7 +5,14 @@ use std::process::exit;
 fn compile_prototypes() -> Result<(), Box<dyn Error>> {
     tonic_build::configure()
         // .format(false) // disable code formatting since docs.rs will otherwise break
-        .compile(&["proto/models.proto", "proto/store.proto"], &["."])?;
+        .compile(
+            &[
+                "proto/models.proto",
+                "proto/store.proto",
+                "proto/node.proto",
+            ],
+            &["."],
+        )?;
     Ok(())
 }
 
@@ -16,5 +23,6 @@ fn main() {
     }
 
     println!("cargo:rerun-if-changed=proto/store.proto");
+    println!("cargo:rerun-if-changed=proto/node.proto");
     println!("cargo:rerun-if-changed=proto/models.proto");
 }

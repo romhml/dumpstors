@@ -1,4 +1,6 @@
 use futures::Stream;
+use rand::Rng;
+use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, MutexGuard};
 use tokio::sync::mpsc;
@@ -17,6 +19,7 @@ use std::result::Result as StdResult;
 pub struct DumpstorsStoreServer {
     store: Arc<Mutex<Store>>,
     node: Arc<Mutex<RaftRawNode<MemStorage>>>,
+    peers: Arc<Mutex<HashMap<String, models::Node>>>,
 }
 
 impl DumpstorsStoreServer {
@@ -29,10 +32,11 @@ impl DumpstorsStoreServer {
     }
 
     pub fn new(store: Arc<Mutex<Store>>) -> Self {
-        // Create the Raft node.
+        // TODO: Implement a metadata store to persist the node ID on disk
+        let mut rng = rand::thread_rng();
         let cfg = RaftConfig {
             // The unique ID for the Raft node.
-            id: 1,
+            id: rng.gen(),
             // The Raft node list.
             // Mostly, the peers need to be saved in the storage
             // and we can get them from the Storage::initial_state function, so here
@@ -60,6 +64,7 @@ impl DumpstorsStoreServer {
         Self {
             store,
             node: Arc::new(Mutex::new(node)),
+            peers: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }

@@ -18,11 +18,14 @@ impl Settings {
     pub fn new() -> Result<Self, ConfigError> {
         let mut s = Config::new();
 
-        s.set("listen_addr", "0.0.0.0")?;
-        s.set("port", "4242")?;
+        s.set("listen_addr", "127.0.0.1")?;
+        s.set("port", "4243")?;
         s.set("store.path", ".data/")?;
 
-        s.set("seeds", vec!["localhost:4242", "localhost:4243"])?;
+        s.set(
+            "seeds",
+            vec!["http://localhost:4242", "http://localhost:4243"],
+        )?;
         s.try_into()
     }
 }

@@ -1,6 +1,21 @@
 syntax = "proto3";
 package dumpstors.models;
 
+enum NodeStatus {
+  UP = 0;
+  DOWN = 1;
+}
+
+message Node {
+  uint64 id = 1;
+  string host = 2;
+  NodeStatus status = 3;
+}
+
+message Nodes {
+  repeated Node nodes = 1;
+}
+
 message Record {
   bytes key = 1;
   bytes value = 2;

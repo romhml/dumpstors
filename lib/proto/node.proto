@@ -1,0 +1,12 @@
+
+syntax = "proto3";
+package dumpstors.node;
+
+import "google/protobuf/empty.proto";
+import "proto/models.proto";
+
+service Node {
+  rpc Ping (google.protobuf.Empty) returns (google.protobuf.Empty);
+
+  rpc Advertise (dumpstors.models.Node) returns (dumpstors.models.Nodes);
+}
