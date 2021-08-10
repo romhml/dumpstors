@@ -12,4 +12,4 @@ prost-types = "0.7"
 uuid = { version = "0.8.2", features = ["v4"] }
 
 [build-dependencies]
-tonic-build = "0.4.0"
+tonic-build = "0.5.2"
