@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 sled = "0.34.6"
-tonic = "0.4.0"
+tonic = "0.7.1"
 prost = "0.7"
 prost-types = "0.7"
 uuid = { version = "0.8.2", features = ["v4"] }
